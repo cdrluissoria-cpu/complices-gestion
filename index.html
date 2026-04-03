@@ -4269,5 +4269,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+
+</script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC60eEfzATr1_E5uRX8hDjSWAD86ooQ0gg",
+    authDomain: "complices-gestion.firebaseapp.com",
+    projectId: "complices-gestion",
+    storageBucket: "complices-gestion.firebasestorage.app",
+    messagingSenderId: "630630234980",
+    appId: "1:630630234980:web:a186a763b7476860145871"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function guardarClientePrueba() {
+    try {
+      await addDoc(collection(db, "clientes"), {
+        nombre: "Cliente desde sistema",
+        telefono: "111111",
+        activo: true
+      });
+      alert("Guardado en Firebase");
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  window.guardarClientePrueba = guardarClientePrueba;
+</script>
+
+
 </body>
 </html>

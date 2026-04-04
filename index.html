@@ -684,8 +684,12 @@
     <div class="topbar-right">
       <button id="btn-sync-now" onclick="syncNow()" title="Sincronizar con Firebase ahora"
         style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;">
-        <span id="sync-icon" style="font-size:13px;">☁</span>
+        <span id="sync-icon" style="font-size:13px;display:inline-block;">☁</span>
         <span id="sync-status" style="font-size:11px;color:var(--text3);">Local</span>
+      </button>
+      <button id="btn-force-upload" onclick="forceUploadToFirebase()" title="Forzar subida de datos a Firebase"
+        style="display:none;background:var(--accent);color:#1a1200;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;">
+        ⬆ Subir datos
       </button>
       <span style="font-size:12px;color:var(--text3);" id="topbar-date"></span>
       <button class="btn btn-primary btn-sm" id="topbar-action" onclick="handleTopbarAction()">+ Nueva Fiesta</button>
@@ -2098,16 +2102,31 @@ async function loadFromFirestore() {
     const cfgSnap = await getDoc(doc(db, 'config', 'main'));
     const pcSnap  = await getDoc(doc(db, 'config', 'planCuentas'));
     const ctSnap  = await getDoc(doc(db, 'config', 'cuentas'));
-    if (clientes.length || eventos.length || movimientos.length) {
-      DB.clientes = clientes;
-      DB.eventos = eventos;
-      DB.movimientos = movimientos;
-      DB.costos = costos;
-      DB.asientos = asientos;
+    // Solo sobreescribir si Firebase tiene AL MENOS tantos movimientos como el HTML actual
+    const htmlMovCount = DB.movimientos.length;
+    const fsMovCount   = movimientos.length;
+    const htmlSaldo    = DB.cuentas.reduce((s,c) => s+(c.saldo||0), 0);
+    const fsSaldo      = ctSnap.exists() && ctSnap.data().items
+      ? ctSnap.data().items.reduce((s,c) => s+(c.saldo||0), 0) : 0;
+
+    if (fsMovCount >= htmlMovCount && fsSaldo >= htmlSaldo) {
+      // Firebase es igual o más completo — usar sus datos
+      if (clientes.length || eventos.length || movimientos.length) {
+        DB.clientes    = clientes;
+        DB.eventos     = eventos;
+        DB.movimientos = movimientos;
+        DB.costos      = costos;
+        DB.asientos    = asientos;
+      }
+      if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
+      if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
+      if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
+    } else {
+      // Firebase está desactualizado — mantener datos del HTML, solo config
+      if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
+      if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
+      // NO sobreescribir cuentas ni movimientos — el HTML tiene los correctos
     }
-    if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
-    if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
-    if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
     saveLocal();
     setSyncStatus('ok');
     return true;
@@ -2158,13 +2177,50 @@ function loadDB() {
 // Init Firebase when ready
 document.addEventListener('firebase-ready', async () => {
   _fsReady = true;
+
+  // Snapshot del estado actual del HTML (datos correctos inyectados)
+  const htmlMovs  = DB.movimientos.length;
+  const htmlTotal = DB.cuentas.reduce((s,c) => s + (c.saldo||0), 0);
+
   const loaded = await loadFromFirestore();
+
   if (loaded) {
-    renderDashboard();
-    mostrarToast('☁ Datos sincronizados con Firebase · ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}), 'green');
+    const fsMovs  = DB.movimientos.length;
+    const fsTotal = DB.cuentas.reduce((s,c) => s + (c.saldo||0), 0);
+
+    // Si Firebase tiene MENOS movimientos o saldos menores → está desactualizado
+    // Subir los datos del HTML a Firebase
+    if (htmlMovs > fsMovs || htmlTotal > fsTotal) {
+      console.log(`Firebase desactualizado (${fsMovs} movs / $${fsTotal}) vs HTML (${htmlMovs} movs / $${htmlTotal}). Subiendo datos correctos…`);
+      // Restaurar datos del HTML (que son los correctos del backup)
+      loadDB(); // recarga HTML hardcoded
+      setSyncStatus('syncing');
+      try {
+        await Promise.all([
+          fsSaveCollection('clientes', DB.clientes),
+          fsSaveCollection('eventos', DB.eventos),
+          fsSaveCollection('movimientos', DB.movimientos),
+          fsSaveCollection('costos', DB.costos),
+          fsSaveCollection('asientos', DB.asientos),
+          fsSaveConfig(),
+        ]);
+        saveLocal();
+        setSyncStatus('ok');
+        renderDashboard();
+        mostrarToast('☁ Firebase actualizado con datos correctos · ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}), 'green');
+      } catch(e) {
+        setSyncStatus('error', 'Error al subir');
+        mostrarToast('⚠ Error al actualizar Firebase: ' + e.message, 'amber');
+      }
+    } else {
+      // Firebase tiene datos iguales o más recientes — usar Firebase
+      renderDashboard();
+      setSyncStatus('ok');
+      mostrarToast('☁ Sincronizado · ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}), 'green');
+    }
   } else {
-    setSyncStatus('error', 'Sin acceso a Firestore');
-    mostrarToast('⚠ Firebase conectado pero sin acceso a datos. Verificá las Reglas de Firestore.', 'amber');
+    setSyncStatus('error', 'Sin acceso');
+    mostrarToast('⚠ Firebase sin acceso. Verificá las Reglas de Firestore.', 'amber');
   }
 });
 
@@ -4589,6 +4645,34 @@ function toggleCCDetalle(rowId) {
   }
 }
 
+
+// ============================================================
+// FORZAR SUBIDA A FIREBASE
+// ============================================================
+async function forceUploadToFirebase() {
+  if (!_fsReady) { mostrarToast('⚠ Firebase no conectado.', 'amber'); return; }
+  const btn = document.getElementById('btn-force-upload');
+  if (btn) btn.style.display = 'none';
+  setSyncStatus('syncing');
+  mostrarToast('⬆ Subiendo datos a Firebase…', 'amber');
+  try {
+    await Promise.all([
+      fsSaveCollection('clientes', DB.clientes),
+      fsSaveCollection('eventos', DB.eventos),
+      fsSaveCollection('movimientos', DB.movimientos),
+      fsSaveCollection('costos', DB.costos),
+      fsSaveCollection('asientos', DB.asientos),
+      fsSaveConfig(),
+    ]);
+    saveLocal();
+    setSyncStatus('ok');
+    mostrarToast('✅ Datos subidos a Firebase correctamente.', 'green');
+  } catch(e) {
+    setSyncStatus('error');
+    mostrarToast('❌ Error al subir: ' + e.message, 'amber');
+  }
+}
+
 // ============================================================
 // SYNC MANUAL
 // ============================================================
@@ -4604,6 +4688,7 @@ async function syncNow() {
   }
   setSyncStatus('syncing');
   const t0 = Date.now();
+  // syncNow siempre SUBE los datos locales a Firebase (no descarga)
   try {
     await Promise.all([
       fsSaveCollection('clientes', DB.clientes),
@@ -4616,10 +4701,12 @@ async function syncNow() {
     saveLocal();
     const ms = Date.now() - t0;
     setSyncStatus('ok');
-    mostrarToast(`✅ Firebase sincronizado en ${ms}ms`, 'green');
+    const btn = document.getElementById('btn-force-upload');
+    if (btn) btn.style.display = 'none';
+    mostrarToast(`✅ Subido a Firebase en ${ms}ms · ${DB.movimientos.length} movs · ${DB.clientes.length} clientes`, 'green');
   } catch(e) {
     setSyncStatus('error', 'Error');
-    mostrarToast('❌ Error al sincronizar: ' + e.message, 'amber');
+    mostrarToast('❌ Error: ' + e.message, 'amber');
   }
 }
 

@@ -4,6 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cómplices · Sistema de Gestión</title>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, onSnapshot, writeBatch, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC6OeEfzATr1_E5uRX8hDjSWAD86ooQ0gg",
+    authDomain: "complices-gestion.firebaseapp.com",
+    projectId: "complices-gestion",
+    storageBucket: "complices-gestion.firebasestorage.app",
+    messagingSenderId: "630630234980",
+    appId: "1:630630234980:web:a186a763b7476860145871"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // ── Expose Firestore helpers to global scope ──────────────
+  window._FS = {
+    db, doc, setDoc, getDoc, collection, getDocs, deleteDoc,
+    onSnapshot, writeBatch, serverTimestamp,
+    // Colecciones raíz
+    COL: {
+      clientes:    'clientes',
+      eventos:     'eventos',
+      movimientos: 'movimientos',
+      cuentas:     'cuentas',
+      costos:      'costos',
+      asientos:    'asientos',
+      config:      'config',
+      planCuentas: 'planCuentas',
+    }
+  };
+  window._FS_READY = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
   :root {
     --bg: #0f0f0f;
@@ -634,6 +671,9 @@
       </div>
     </div>
     <div class="topbar-right">
+      <span id="sync-status" style="min-width:100px;text-align:right;">
+        <span style="color:var(--text3);font-size:11px;">💾 Local</span>
+      </span>
       <span style="font-size:12px;color:var(--text3);" id="topbar-date"></span>
       <button class="btn btn-primary btn-sm" id="topbar-action" onclick="handleTopbarAction()">+ Nueva Fiesta</button>
     </div>
@@ -1301,12 +1341,36 @@
             </div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="saveConfig()">Guardar configuración</button>
+          <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="forzarSincronizacion()">☁ Sincronizar Firebase</button>
           <button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="resetDatos()">&#x1F5D1; Limpiar todos los datos</button>
         </div>
         <div class="card">
-          <div class="form-section-title">Cuentas Financieras</div>
-          <div id="lista-cuentas-config"></div>
-          <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="openModal('modal-cuenta')">+ Nueva cuenta</button>
+          <div class="form-section-title">Firebase · Estado de sincronización</div>
+          <div style="margin-bottom:14px;">
+            <div id="cfg-firebase-status" style="background:var(--bg3);border-radius:8px;padding:14px;font-size:13px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="color:var(--text2);">Estado</span>
+                <span id="cfg-fs-badge"><span style="color:var(--text3);">Cargando…</span></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="color:var(--text2);">Proyecto</span>
+                <span style="color:var(--text3);font-size:12px;">complices-gestion</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text2);">Registros en nube</span>
+                <span id="cfg-fs-count" style="color:var(--text3);">—</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" onclick="forzarSincronizacion()">⬆ Subir a Firebase</button>
+            <button class="btn btn-ghost btn-sm" onclick="forzarCargaFirebase()">⬇ Recargar desde Firebase</button>
+          </div>
+          <div style="margin-top:20px;">
+            <div class="form-section-title">Cuentas Financieras</div>
+            <div id="lista-cuentas-config"></div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="openModal('modal-cuenta')">+ Nueva cuenta</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1906,14 +1970,156 @@ const DB = {
   ]
 };
 
-// Persistence
-function saveDB() { try { localStorage.setItem('complices_db', JSON.stringify(DB)); } catch(e){} }
-function loadDB() {
+// ============================================================
+// PERSISTENCE — Firebase Firestore + localStorage fallback
+// ============================================================
+
+// LocalStorage fallback (used while Firebase loads)
+function saveLocal() {
+  try { localStorage.setItem('complices_db_cache', JSON.stringify(DB)); } catch(e){}
+}
+function loadLocal() {
   try {
-    const s = localStorage.getItem('complices_db');
+    const s = localStorage.getItem('complices_db_cache');
     if (s) { const d = JSON.parse(s); Object.assign(DB, d); }
   } catch(e){}
 }
+
+// UI sync state
+let _fsReady = false;
+let _syncStatus = 'local'; // 'local' | 'syncing' | 'ok' | 'error'
+
+function setSyncStatus(status, msg) {
+  _syncStatus = status;
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const map = {
+    local:   { icon: '💾', text: 'Local',     color: 'var(--text3)' },
+    syncing: { icon: '🔄', text: 'Guardando…', color: 'var(--accent)' },
+    ok:      { icon: '☁',  text: 'Sincronizado', color: 'var(--green)' },
+    error:   { icon: '⚠',  text: msg||'Error sync', color: 'var(--red)' },
+  };
+  const s = map[status] || map.local;
+  el.innerHTML = `<span style="color:${s.color};font-size:11px;">${s.icon} ${s.text}</span>`;
+}
+
+// Save a single collection document to Firestore
+async function fsSaveCollection(colName, arr) {
+  if (!_fsReady || !window._FS) return;
+  const { db, doc, setDoc, deleteDoc, collection, getDocs, serverTimestamp, COL } = window._FS;
+  try {
+    // Write each item as its own document (id = item.id)
+    const batch = window._FS.writeBatch(db);
+    // Get existing IDs to detect deletions
+    const snap = await getDocs(collection(db, colName));
+    const existingIds = new Set(snap.docs.map(d => d.id));
+    const newIds = new Set(arr.map(x => x.id).filter(Boolean));
+    // Delete removed docs
+    snap.docs.forEach(d => {
+      if (!newIds.has(d.id)) batch.delete(d.ref);
+    });
+    // Upsert current items
+    arr.forEach(item => {
+      if (!item.id) return;
+      const ref = doc(db, colName, item.id);
+      batch.set(ref, { ...item, _ts: serverTimestamp() });
+    });
+    await batch.commit();
+  } catch(e) {
+    console.error('fsSaveCollection', colName, e);
+    throw e;
+  }
+}
+
+// Save config doc
+async function fsSaveConfig() {
+  if (!_fsReady || !window._FS) return;
+  const { db, doc, setDoc, serverTimestamp } = window._FS;
+  try {
+    await setDoc(doc(db, 'config', 'main'), { ...DB.config, _ts: serverTimestamp() });
+    await setDoc(doc(db, 'config', 'planCuentas'), { items: DB.planCuentas, _ts: serverTimestamp() });
+    await setDoc(doc(db, 'config', 'cuentas'), { items: DB.cuentas, _ts: serverTimestamp() });
+  } catch(e) { console.error('fsSaveConfig', e); throw e; }
+}
+
+// Master save
+let _saveTimer = null;
+function saveDB() {
+  saveLocal(); // always save locally first
+  if (!_fsReady) return;
+  clearTimeout(_saveTimer);
+  setSyncStatus('syncing');
+  _saveTimer = setTimeout(async () => {
+    try {
+      await Promise.all([
+        fsSaveCollection('clientes', DB.clientes),
+        fsSaveCollection('eventos', DB.eventos),
+        fsSaveCollection('movimientos', DB.movimientos),
+        fsSaveCollection('costos', DB.costos),
+        fsSaveCollection('asientos', DB.asientos),
+        fsSaveConfig(),
+      ]);
+      setSyncStatus('ok');
+      saveLocal(); // update cache after successful sync
+    } catch(e) {
+      setSyncStatus('error', 'Error al guardar');
+      console.error('saveDB error:', e);
+    }
+  }, 800); // debounce 800ms
+}
+
+// Load all data from Firestore
+async function loadFromFirestore() {
+  if (!window._FS) return false;
+  const { db, collection, getDocs, doc, getDoc } = window._FS;
+  setSyncStatus('syncing');
+  try {
+    const load = async (colName) => {
+      const snap = await getDocs(collection(db, colName));
+      return snap.docs.map(d => { const data = d.data(); delete data._ts; return data; });
+    };
+    const [clientes, eventos, movimientos, costos, asientos] = await Promise.all([
+      load('clientes'), load('eventos'), load('movimientos'), load('costos'), load('asientos')
+    ]);
+    // Config
+    const cfgSnap = await getDoc(doc(db, 'config', 'main'));
+    const pcSnap  = await getDoc(doc(db, 'config', 'planCuentas'));
+    const ctSnap  = await getDoc(doc(db, 'config', 'cuentas'));
+    if (clientes.length || eventos.length || movimientos.length) {
+      DB.clientes = clientes;
+      DB.eventos = eventos;
+      DB.movimientos = movimientos;
+      DB.costos = costos;
+      DB.asientos = asientos;
+    }
+    if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
+    if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
+    if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
+    saveLocal();
+    setSyncStatus('ok');
+    return true;
+  } catch(e) {
+    console.error('loadFromFirestore', e);
+    setSyncStatus('error', 'Sin conexión');
+    return false;
+  }
+}
+
+function loadDB() {
+  loadLocal(); // load cache immediately for instant UI
+}
+
+// Init Firebase when ready
+document.addEventListener('firebase-ready', async () => {
+  _fsReady = true;
+  const loaded = await loadFromFirestore();
+  if (loaded) {
+    renderDashboard();
+    mostrarToast('☁ Datos sincronizados desde Firebase', 'green');
+  } else {
+    mostrarToast('⚠ Sin conexión — usando datos locales', 'amber');
+  }
+});
 
 // ============================================================
 // UTILS
@@ -3244,8 +3450,7 @@ function saveConfig() {
 
 function renderConfig() {
   const el = document.getElementById('lista-cuentas-config');
-  if (!el) return;
-  el.innerHTML = DB.cuentas.map(c => `
+  if (el) el.innerHTML = DB.cuentas.map(c => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
       <div>
         <div style="font-size:13px;color:var(--text);">${c.nombre}</div>
@@ -3253,6 +3458,18 @@ function renderConfig() {
       </div>
       <div style="font-weight:600;font-size:13px;">${fmt(c.saldo)}</div>
     </div>`).join('');
+  // Firebase status
+  const badge = document.getElementById('cfg-fs-badge');
+  const count = document.getElementById('cfg-fs-count');
+  if (badge) {
+    badge.innerHTML = _fsReady
+      ? '<span class="badge badge-green">Conectado ☁</span>'
+      : '<span class="badge badge-amber">Sin conexión 💾</span>';
+  }
+  if (count) {
+    const total = DB.clientes.length + DB.eventos.length + DB.movimientos.length + DB.asientos.length + DB.costos.length;
+    count.textContent = total + ' registros locales';
+  }
 }
 
 // ============================================================
@@ -3438,6 +3655,7 @@ function exportarJSON() {
     version: '1.0',
     exportado: new Date().toISOString(),
     negocio: 'Complices · Tu Lugar',
+    fuente: _fsReady ? 'Firebase Firestore' : 'localStorage',
     data: {
       clientes: DB.clientes,
       eventos: DB.eventos,
@@ -3482,9 +3700,9 @@ function importarJSON(event) {
       if (d.config !== undefined) DB.config = d.config;
       if (d.planCuentas !== undefined) DB.planCuentas = d.planCuentas;
       if (d.nextId !== undefined) DB.nextId = d.nextId;
-      saveDB();
+      saveDB(); // saves local + pushes to Firebase if connected
       renderDashboard();
-      mostrarToast(`✅ Backup restaurado: ${DB.clientes.length} clientes, ${DB.eventos.length} eventos, ${DB.movimientos.length} movimientos`, 'green');
+      mostrarToast(`✅ Backup restaurado: ${DB.clientes.length} clientes, ${DB.eventos.length} eventos, ${DB.movimientos.length} movimientos${_fsReady?' · Sincronizando con Firebase…':''}`, 'green');
       // Reset file input
       document.getElementById('input-importar').value = '';
     } catch(err) {
@@ -4146,6 +4364,44 @@ function renderBITendencia() {
 const _origRenderResultado = typeof renderEstadoResultados === 'function' ? renderEstadoResultados : null;
 
 
+
+// ============================================================
+// SYNC MANUAL
+// ============================================================
+async function forzarSincronizacion() {
+  if (!_fsReady) {
+    mostrarToast('⚠ Firebase no está conectado. Verificá tu conexión a internet.', 'amber');
+    return;
+  }
+  setSyncStatus('syncing');
+  mostrarToast('🔄 Sincronizando con Firebase…', 'amber');
+  try {
+    await Promise.all([
+      fsSaveCollection('clientes', DB.clientes),
+      fsSaveCollection('eventos', DB.eventos),
+      fsSaveCollection('movimientos', DB.movimientos),
+      fsSaveCollection('costos', DB.costos),
+      fsSaveCollection('asientos', DB.asientos),
+      fsSaveConfig(),
+    ]);
+    setSyncStatus('ok');
+    mostrarToast('✅ Sincronización completa con Firebase', 'green');
+  } catch(e) {
+    setSyncStatus('error');
+    mostrarToast('❌ Error al sincronizar: ' + e.message, 'amber');
+  }
+}
+
+async function forzarCargaFirebase() {
+  const ok = await loadFromFirestore();
+  if (ok) {
+    renderDashboard();
+    mostrarToast('✅ Datos recargados desde Firebase', 'green');
+  } else {
+    mostrarToast('❌ No se pudo conectar con Firebase', 'amber');
+  }
+}
+
 // ============================================================
 // RESET DATOS
 // ============================================================
@@ -4159,9 +4415,28 @@ function resetDatos() {
   DB.asientos = [];
   DB.cuentas.forEach(c => c.saldo = 0);
   DB.nextId = { c: 1, e: 1, m: 1, a: 1, g: 1 };
-  saveDB();
+  saveLocal();
+  // Also clear Firestore if connected
+  if (_fsReady && window._FS) {
+    setSyncStatus('syncing');
+    const { db, collection, getDocs, writeBatch } = window._FS;
+    const cols = ['clientes','eventos','movimientos','costos','asientos'];
+    Promise.all(cols.map(async col => {
+      const snap = await getDocs(collection(db, col));
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      return batch.commit();
+    })).then(() => {
+      setSyncStatus('ok');
+      mostrarToast('✅ Datos eliminados en Firebase y localmente.', 'amber');
+    }).catch(e => {
+      setSyncStatus('error');
+      mostrarToast('⚠ Datos locales eliminados pero error en Firebase: ' + e.message, 'amber');
+    });
+  } else {
+    mostrarToast('✅ Datos operativos eliminados. Sistema listo para operar.', 'amber');
+  }
   showView('dashboard');
-  mostrarToast('✅ Datos operativos eliminados. Sistema listo para operar.', 'amber');
 }
 
 // ============================================================
@@ -4269,40 +4544,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
-
-</script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyC60eEfzATr1_E5uRX8hDjSWAD86ooQ0gg",
-    authDomain: "complices-gestion.firebaseapp.com",
-    projectId: "complices-gestion",
-    storageBucket: "complices-gestion.firebasestorage.app",
-    messagingSenderId: "630630234980",
-    appId: "1:630630234980:web:a186a763b7476860145871"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  async function guardarClientePrueba() {
-    try {
-      await addDoc(collection(db, "clientes"), {
-        nombre: "Cliente desde sistema",
-        telefono: "111111",
-        activo: true
-      });
-      alert("Guardado en Firebase");
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  window.guardarClientePrueba = guardarClientePrueba;
-</script>
-
-
 </body>
 </html>

@@ -356,6 +356,11 @@
   .cc-row { transition: background 0.1s; }
   [id^="cc-det-"] td { padding: 0 !important; }
 
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  #btn-sync-now:hover { background: var(--bg3) !important; }
+  #btn-sync-now:active { transform: scale(0.95); }
+
   /* ANULADO */
   tr.anulado-row { opacity: 0.45; }
   tr.contraasiento-row { background: rgba(224,85,85,0.04); }
@@ -677,9 +682,11 @@
       </div>
     </div>
     <div class="topbar-right">
-      <span id="sync-status" style="min-width:100px;text-align:right;">
-        <span style="color:var(--text3);font-size:11px;">💾 Local</span>
-      </span>
+      <button id="btn-sync-now" onclick="syncNow()" title="Sincronizar con Firebase ahora"
+        style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;">
+        <span id="sync-icon" style="font-size:13px;">☁</span>
+        <span id="sync-status" style="font-size:11px;color:var(--text3);">Local</span>
+      </button>
       <span style="font-size:12px;color:var(--text3);" id="topbar-date"></span>
       <button class="btn btn-primary btn-sm" id="topbar-action" onclick="handleTopbarAction()">+ Nueva Fiesta</button>
     </div>
@@ -1943,10 +1950,10 @@
 const DB = {
   clientes: [{"obs":"","wa":"3863548101","fnac":"1990-06-16","tel":"3863548101","estado":"activo","alta":"2026-04-04","id":"CLI_1775283631101_j4wh6","dni":"35.029.351","email":"paulambcarrizo@gmail.com","dir":"","nombre":"Carrizo Paula"},{"id":"CLI_1775283992793_ww4kj","nombre":"Argañaraz Jose Luis","dni":"39.358.032","tel":"","wa":"","email":"","dir":"","obs":"","fnac":"1995-11-01","estado":"activo","alta":"2026-04-04"}],
   eventos: [{"clienteId":"CLI_1775283631101_j4wh6","fechaContratacion":"2025-12-20","fechaEvento":"2026-04-03","tipo":"Casamiento","horaInicio":"22:00","horaFin":"05:30","invitados":123,"precioPP":41341,"total":5085000,"sena":400000,"lineas":[{"desc":"Personas","cant":120,"precio":41500,"sub":4980000},{"desc":"Personas","cant":3,"precio":35000,"sub":105000}],"estado":"Contratado","salon":"COMPLICES TU LUGAR","obs":"","id":"EVT_1775284232741_cmwsc","creado":"2026-04-04"}],
-  movimientos: [{"id":"MOV_1775284232742_e53ae","fecha":"2026-04-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Seña · Casamiento · Carrizo Paula","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":400000,"medio":"Efectivo","obs":"Registrado automáticamente al crear evento","asientoId":"ASI_1775284232742_cden4"},{"id":"MOV_1775284575757_dwtak","fecha":"2026-03-30","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":1650000,"medio":"Transferencia","obs":"","asientoId":"ASI_1775284575757_qogzk"},{"id":"MOV_1775286223454_6wdi5","fecha":"2026-03-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c3","importe":2500000,"medio":"MercadoPago","obs":"","asientoId":"ASI_1775286223454_5s7y9"}],
-  cuentas: [{"id":"c1","nombre":"Caja efectivo","saldo":2050000,"tipo":"Caja"},{"id":"c2","saldo":0,"nombre":"Cuenta banco","tipo":"Banco"},{"id":"c3","saldo":2500000,"nombre":"MercadoPago","tipo":"Virtual"}],
+  movimientos: [{"id":"MOV_1775284232742_e53ae","fecha":"2026-04-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Seña · Casamiento · Carrizo Paula","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":400000,"medio":"Efectivo","obs":"Registrado automáticamente al crear evento","asientoId":"ASI_1775284232742_cden4"},{"id":"MOV_1775284575757_dwtak","fecha":"2026-03-30","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":1650000,"medio":"Transferencia","obs":"","asientoId":"ASI_1775284575757_qogzk"},{"id":"MOV_1775286223454_6wdi5","fecha":"2026-03-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c3","importe":2500000,"medio":"MercadoPago","obs":"","asientoId":"ASI_1775286223454_5s7y9"},{"id":"MOV_1775286794368_kik79","fecha":"2026-04-02","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":27000,"medio":"Efectivo","obs":"","asientoId":"ASI_1775286794368_s1k7s"},{"id":"MOV_1775287093437_sc4d1","fecha":"2026-04-02","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c2","importe":127000,"medio":"Transferencia","obs":"","asientoId":"ASI_1775287093437_8ts9h"}],
+  cuentas: [{"id":"c1","nombre":"Caja efectivo","saldo":2077000,"tipo":"Caja"},{"id":"c2","nombre":"Cuenta banco","saldo":127000,"tipo":"Banco"},{"id":"c3","nombre":"MercadoPago","saldo":2500000,"tipo":"Virtual"}],
   costos: [],
-  asientos: [{"id":"ASI_1775284232742_cden4","fecha":"2026-04-04","descripcion":"Seña recibida · Casamiento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284232742_e53ae","lineas":[{"cuenta":"1000","nombre":"Caja","debe":400000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":400000}]},{"id":"ASI_1775284575757_qogzk","fecha":"2026-03-30","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284575757_dwtak","lineas":[{"cuenta":"1000","nombre":"Caja","debe":1650000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":1650000}]},{"id":"ASI_1775286223454_5s7y9","fecha":"2026-03-04","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286223454_6wdi5","lineas":[{"cuenta":"1020","nombre":"MercadoPago","debe":2500000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":2500000}]}],
+  asientos: [{"id":"ASI_1775284232742_cden4","fecha":"2026-04-04","descripcion":"Seña recibida · Casamiento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284232742_e53ae","lineas":[{"cuenta":"1000","nombre":"Caja","debe":400000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":400000}]},{"id":"ASI_1775284575757_qogzk","fecha":"2026-03-30","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284575757_dwtak","lineas":[{"cuenta":"1000","nombre":"Caja","debe":1650000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":1650000}]},{"id":"ASI_1775286223454_5s7y9","fecha":"2026-03-04","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286223454_6wdi5","lineas":[{"cuenta":"1020","nombre":"MercadoPago","debe":2500000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":2500000}]},{"id":"ASI_1775286794368_s1k7s","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286794368_kik79","lineas":[{"cuenta":"1000","nombre":"Caja efectivo","debe":27000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":27000}]},{"id":"ASI_1775287093437_8ts9h","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775287093437_sc4d1","lineas":[{"cuenta":"1010","nombre":"Cuenta banco","debe":127000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":127000}]}],
   config: {"precioPP":0,"senaPct":30,"nombre":"Cómplices · Tu Lugar"},
   nextId: {"c":1,"e":1,"m":1,"a":1,"g":1},
   planCuentas: [{"nombre":"Caja","id":"1000","grupo":"ACTIVO","subgrupo":"Disponibilidades","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Bancos","id":"1010","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Billeteras virtuales","id":"1020","uso":"contabilidad"},{"nombre":"Cuentas a cobrar clientes","id":"1100","grupo":"ACTIVO","subgrupo":"Créditos","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Créditos","nombre":"Otros créditos","id":"1110","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Anticipos de clientes","id":"2000","uso":"contabilidad"},{"subgrupo":"Pasivo corriente","grupo":"PASIVO","id":"2010","nombre":"Proveedores a pagar","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Otras deudas","id":"2020","uso":"contabilidad"},{"grupo":"INGRESOS","subgrupo":"Ingresos operativos","nombre":"Ingresos por eventos","id":"4000","uso":"cobros"},{"id":"4010","nombre":"Ingresos por penalidades / cancelaciones","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"id":"4020","nombre":"Ingresos varios","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"subgrupo":"Costos variables","grupo":"COSTOS","id":"5000","clasif":"Variable","nombre":"Costos variables","uso":"pagos"},{"clasif":"Fijo evento","nombre":"Costos fijos del evento","id":"5010","grupo":"COSTOS","subgrupo":"Costos fijos evento","uso":"pagos"},{"id":"5020","nombre":"Costos fijos de estructura","clasif":"Estructura","subgrupo":"Estructura","grupo":"COSTOS","uso":"pagos"},{"nombre":"Gastos operativos","id":"5030","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"subgrupo":"Administrativos","grupo":"GASTOS","id":"5040","nombre":"Gastos administrativos","uso":"pagos"},{"id":"5050","nombre":"Sueldos y cargas sociales","grupo":"GASTOS","subgrupo":"Personal","clasif":"Estructura","uso":"pagos"},{"id":"5060","nombre":"Alquiler del local","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5070","nombre":"Servicios (luz, agua, gas)","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5080","nombre":"Publicidad y marketing","grupo":"GASTOS","subgrupo":"Comerciales","uso":"pagos"},{"id":"5090","nombre":"Mantenimiento y reparaciones","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"id":"5100","nombre":"DJ / Música","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5110","nombre":"Catering / Comidas","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5120","nombre":"Fotografía / Video","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5130","nombre":"Decoración","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5140","nombre":"Seguridad","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5150","nombre":"Limpieza post-evento","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5160","nombre":"Personal eventual","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5900","nombre":"Gastos financieros","grupo":"GASTOS","subgrupo":"Financieros","uso":"pagos"}]
@@ -1974,15 +1981,24 @@ let _syncStatus = 'local'; // 'local' | 'syncing' | 'ok' | 'error'
 function setSyncStatus(status, msg) {
   _syncStatus = status;
   const el = document.getElementById('sync-status');
-  if (!el) return;
+  const icon = document.getElementById('sync-icon');
+  const btn = document.getElementById('btn-sync-now');
   const map = {
-    local:   { icon: '💾', text: 'Local',     color: 'var(--text3)' },
-    syncing: { icon: '🔄', text: 'Guardando…', color: 'var(--accent)' },
-    ok:      { icon: '☁',  text: 'Sincronizado', color: 'var(--green)' },
-    error:   { icon: '⚠',  text: msg||'Error sync', color: 'var(--red)' },
+    local:   { icon: '💾', text: 'Local',        color: 'var(--text3)',  border: 'var(--border)' },
+    syncing: { icon: '🔄', text: 'Guardando…',   color: 'var(--accent)', border: 'var(--accent)' },
+    ok:      { icon: '☁',  text: 'Sincronizado', color: 'var(--green)',  border: 'rgba(93,186,122,0.4)' },
+    error:   { icon: '⚠',  text: msg||'Error',   color: 'var(--red)',    border: 'rgba(224,85,85,0.4)' },
   };
   const s = map[status] || map.local;
-  el.innerHTML = `<span style="color:${s.color};font-size:11px;">${s.icon} ${s.text}</span>`;
+  if (el) { el.textContent = s.text; el.style.color = s.color; }
+  if (icon) { icon.textContent = s.icon; }
+  if (btn) { btn.style.borderColor = s.border; }
+  // Animar icono al sincronizar
+  if (status === 'syncing' && icon) {
+    icon.style.animation = 'spin 1s linear infinite';
+  } else if (icon) {
+    icon.style.animation = '';
+  }
 }
 
 // Save a single collection document to Firestore
@@ -2026,11 +2042,14 @@ async function fsSaveConfig() {
 
 // Master save
 let _saveTimer = null;
-function saveDB() {
-  saveLocal(); // always save locally first
-  if (!_fsReady) return;
-  clearTimeout(_saveTimer);
+let _pendingSync = false;
+
+function saveDB(immediate = false) {
+  saveLocal(); // siempre local primero
+  if (!_fsReady) { setSyncStatus('local'); return; }
   setSyncStatus('syncing');
+  clearTimeout(_saveTimer);
+  const delay = immediate ? 0 : 600;
   _saveTimer = setTimeout(async () => {
     try {
       await Promise.all([
@@ -2042,12 +2061,12 @@ function saveDB() {
         fsSaveConfig(),
       ]);
       setSyncStatus('ok');
-      saveLocal(); // update cache after successful sync
+      saveLocal();
     } catch(e) {
-      setSyncStatus('error', 'Error al guardar');
+      setSyncStatus('error', 'Error');
       console.error('saveDB error:', e);
     }
-  }, 800); // debounce 800ms
+  }, delay);
 }
 
 // Load all data from Firestore
@@ -2289,7 +2308,7 @@ function guardarCliente() {
   } else {
     DB.clientes.push({ id: uid('CLI'), ...datosCliente, alta: today() });
   }
-  saveDB(); closeModal('modal-cliente'); renderClientes(); resetClienteForm();
+  saveDB(true); closeModal('modal-cliente'); renderClientes(); resetClienteForm();
 }
 
 function resetClienteForm() {
@@ -2511,7 +2530,7 @@ function guardarEvento() {
       autoRegistrarSeña(data.id, sena);
     }
   }
-  saveDB(); closeModal('modal-evento');
+  saveDB(true); closeModal('modal-evento');
   renderEventos(); renderDashboard();
   document.getElementById('evento-id').value = '';
 }
@@ -2844,7 +2863,7 @@ function guardarMovimiento() {
         : [{ cuenta: cuentaCodigo, nombre: cuenta?.nombre||'Caja', debe: importe, haber: 0 },
            { cuenta: '2000', nombre: 'Anticipos de clientes', debe: 0, haber: importe }]
     });
-    saveDB();
+    saveDB(true);
     closeModal('modal-movimiento');
     renderTesoreria();
     renderDashboard();
@@ -2872,7 +2891,7 @@ function guardarMovimiento() {
         { cuenta: ctaIngresoId, nombre: ctaIngreso?.nombre || 'Ingresos varios', debe: 0, haber: importe }
       ]
     });
-    saveDB();
+    saveDB(true);
     closeModal('modal-movimiento');
     renderTesoreria();
     renderDashboard();
@@ -2893,7 +2912,7 @@ function guardarMovimiento() {
         { cuenta: cuentaCodigo, nombre: cuenta?.nombre||'Caja', debe: 0, haber: importe }
       ]
     });
-    saveDB();
+    saveDB(true);
     closeModal('modal-movimiento');
     renderTesoreria();
     renderDashboard();
@@ -2916,7 +2935,7 @@ function guardarMovimiento() {
         { cuenta: cuentaCodigo, nombre: cuenta?.nombre||'Caja', debe: 0, haber: importe }
       ]
     });
-    saveDB();
+    saveDB(true);
     closeModal('modal-movimiento');
     renderTesoreria();
     renderDashboard();
@@ -4574,12 +4593,17 @@ function toggleCCDetalle(rowId) {
 // SYNC MANUAL
 // ============================================================
 async function forzarSincronizacion() {
+  await syncNow();
+}
+
+async function syncNow() {
   if (!_fsReady) {
-    mostrarToast('⚠ Firebase no está conectado. Verificá tu conexión a internet.', 'amber');
+    mostrarToast('⚠ Firebase no conectado. Verificá tu internet.', 'amber');
+    setSyncStatus('error', 'Sin conexión');
     return;
   }
   setSyncStatus('syncing');
-  mostrarToast('🔄 Sincronizando con Firebase…', 'amber');
+  const t0 = Date.now();
   try {
     await Promise.all([
       fsSaveCollection('clientes', DB.clientes),
@@ -4589,10 +4613,12 @@ async function forzarSincronizacion() {
       fsSaveCollection('asientos', DB.asientos),
       fsSaveConfig(),
     ]);
+    saveLocal();
+    const ms = Date.now() - t0;
     setSyncStatus('ok');
-    mostrarToast('✅ Sincronización completa con Firebase', 'green');
+    mostrarToast(`✅ Firebase sincronizado en ${ms}ms`, 'green');
   } catch(e) {
-    setSyncStatus('error');
+    setSyncStatus('error', 'Error');
     mostrarToast('❌ Error al sincronizar: ' + e.message, 'amber');
   }
 }

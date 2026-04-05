@@ -1935,7 +1935,9 @@
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm" id="btn-eliminar-cuentac" style="margin-right:auto;display:none;" onclick="eliminarCuentaContable()">Eliminar cuenta</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-nueva-cuenta-contable')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarCuentaContable()">Guardar Cuenta</button>
+      <button class="btn btn-primary" onclick="guardarCuentaContable()">
+        <span id="btn-guardar-cuenta-text">Guardar Cuenta</span>
+      </button>
     </div>
   </div>
 </div>
@@ -2011,7 +2013,11 @@ const DB = {
 
 // LocalStorage fallback (used while Firebase loads)
 function saveLocal() {
-  try { localStorage.setItem('complices_db_cache', JSON.stringify(DB)); } catch(e){}
+  try {
+    // Asegurar que el timestamp del plan de cuentas se persiste localmente
+    if (!DB._planCuentasTs) DB._planCuentasTs = 0;
+    localStorage.setItem('complices_db_cache', JSON.stringify(DB));
+  } catch(e){}
 }
 function loadLocal() {
   try {
@@ -2081,7 +2087,7 @@ async function fsSaveConfig() {
   const { db, doc, setDoc, serverTimestamp } = window._FS;
   try {
     await setDoc(doc(db, 'config', 'main'), { ...DB.config, _ts: serverTimestamp() });
-    await setDoc(doc(db, 'config', 'planCuentas'), { items: DB.planCuentas, _ts: serverTimestamp() });
+    await setDoc(doc(db, 'config', 'planCuentas'), { items: DB.planCuentas, _ts: serverTimestamp(), _pcTs: Date.now() });
     await setDoc(doc(db, 'config', 'cuentas'), { items: DB.cuentas, _ts: serverTimestamp() });
   } catch(e) { console.error('fsSaveConfig', e); throw e; }
 }
@@ -2144,15 +2150,22 @@ async function loadFromFirestore() {
     const cfgSnap = await getDoc(doc(db, 'config', 'main'));
     const pcSnap  = await getDoc(doc(db, 'config', 'planCuentas'));
     const ctSnap  = await getDoc(doc(db, 'config', 'cuentas'));
-    // Solo sobreescribir si Firebase tiene AL MENOS tantos movimientos como el HTML actual
+    // Comparar Firebase vs HTML para decidir cuál tiene datos más recientes
     const htmlMovCount = DB.movimientos.length;
     const fsMovCount   = movimientos.length;
     const htmlSaldo    = DB.cuentas.reduce((s,c) => s+(c.saldo||0), 0);
     const fsSaldo      = ctSnap.exists() && ctSnap.data().items
       ? ctSnap.data().items.reduce((s,c) => s+(c.saldo||0), 0) : 0;
+    // Comparar plan de cuentas: Firebase tiene plan actualizado si tiene MÁS cuentas
+    const htmlPCCount  = DB.planCuentas.length;
+    const fsPCItems    = pcSnap.exists() ? (pcSnap.data().items||[]) : [];
+    const fsPCCount    = fsPCItems.length;
+    // Timestamp del plan de cuentas en Firebase
+    const fsPCTs       = pcSnap.exists() ? (pcSnap.data()._pcTs || 0) : 0;
+    const htmlPCTs     = DB._planCuentasTs || 0;
 
     if (fsMovCount >= htmlMovCount && fsSaldo >= htmlSaldo) {
-      // Firebase es igual o más completo — usar sus datos
+      // Firebase tiene movimientos iguales o más — usar datos operativos de Firebase
       if (clientes.length || eventos.length || movimientos.length) {
         DB.clientes    = clientes;
         DB.eventos     = eventos;
@@ -2161,13 +2174,20 @@ async function loadFromFirestore() {
         DB.asientos    = asientos;
       }
       if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
-      if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
+      // Plan de cuentas: usar Firebase SOLO si tiene más cuentas O timestamp más nuevo
+      if (fsPCCount > 0 && (fsPCCount >= htmlPCCount || fsPCTs > htmlPCTs)) {
+        DB.planCuentas = fsPCItems;
+      }
+      // Cuentas financieras: usar Firebase si tiene saldo >= HTML
       if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
     } else {
-      // Firebase está desactualizado — mantener datos del HTML, solo config
+      // Firebase está desactualizado en movimientos/saldos
       if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
-      if (pcSnap.exists() && pcSnap.data().items?.length) DB.planCuentas = pcSnap.data().items;
-      // NO sobreescribir cuentas ni movimientos — el HTML tiene los correctos
+      // Plan de cuentas: usar Firebase si tiene MÁS cuentas que el HTML hardcoded
+      if (fsPCCount > htmlPCCount || fsPCTs > htmlPCTs) {
+        DB.planCuentas = fsPCItems;
+      }
+      // NO sobreescribir cuentas financieras ni movimientos
     }
     saveLocal();
     setSyncStatus('ok');
@@ -2200,6 +2220,8 @@ function loadDB() {
       }
     }
   } catch(e) {}
+  // Restaurar timestamp del plan de cuentas
+  if (!DB._planCuentasTs) DB._planCuentasTs = 0;
   // Sanitize
   DB.clientes.forEach(c => { if (!c.estado) c.estado = 'activo'; });
   DB.eventos.forEach(e => { if (!e.lineas) e.lineas = []; });
@@ -3330,17 +3352,30 @@ function guardarCuentaContable() {
     DB.planCuentas.push({ id: codigo, nombre, grupo, subgrupo, clasif, uso });
     DB.planCuentas.sort((a,b) => a.id > b.id ? 1 : -1);
   }
-  saveDB(true); // sync inmediato a Firebase
+  // Marcar timestamp local para que Firebase sepa que este plan es más nuevo
+  DB._planCuentasTs = Date.now();
+  saveLocal(); // guardar local inmediatamente
   closeModal('modal-nueva-cuenta-contable');
   resetCuentaContableForm();
   renderPlanCuentas();
-  // Si estamos en contabilidad, actualizar selects
+  // Actualizar selector de mayor
   const selMayor = document.getElementById('select-cuenta-mayor');
   if (selMayor) {
     selMayor.innerHTML = '<option value="">— Elegir cuenta —</option>';
     DB.planCuentas.forEach(pc => { selMayor.innerHTML += `<option value="${pc.id}">${pc.id} · ${pc.nombre}</option>`; });
   }
-  mostrarToast('✅ Cuenta contable guardada: ' + nombre, 'green');
+  mostrarToast('✅ ' + nombre + ' guardado localmente. Sincronizando con Firebase…', 'green');
+  // Sincronizar con Firebase
+  if (_fsReady) {
+    setSyncStatus('syncing');
+    fsSaveConfig().then(() => {
+      setSyncStatus('ok');
+      mostrarToast('☁ Plan de cuentas sincronizado en Firebase', 'green');
+    }).catch(e => {
+      setSyncStatus('error');
+      mostrarToast('⚠ Guardado local OK, error en Firebase: ' + e.message, 'amber');
+    });
+  }
 }
 
 function eliminarCuentaContable() {

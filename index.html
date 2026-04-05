@@ -1060,11 +1060,12 @@
           <div class="section-title">Contabilidad</div>
           <div class="section-sub">Libro diario · Criterio devengado</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="openModal('modal-asiento')">+ Asiento Manual</button>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('modal-asiento')">+ Minuta Contable</button>
       </div>
       <div class="tabs">
         <div class="tab active" onclick="switchTab(this,'libro-diario')">Libro Diario</div>
         <div class="tab" onclick="switchTab(this,'mayor')">Mayor por Cuenta</div>
+        <div class="tab" onclick="switchTab(this,'minutas')">Minutas</div>
         <div class="tab" onclick="switchTab(this,'plan-cuentas')">Plan de Cuentas</div>
         <div class="tab" onclick="switchTab(this,'balance')">Balance Sumas y Saldos</div>
       </div>
@@ -1093,6 +1094,18 @@
           <div id="mayor-content"><div class="empty-state">Seleccioná una cuenta para ver el mayor.</div></div>
         </div>
       </div>
+      <!-- TAB MINUTAS -->
+      <div id="tab-minutas" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);">Minutas Contables</div>
+            <div style="font-size:12px;color:var(--text3);">Asientos manuales de ajuste y reclasificación</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-asiento')">+ Nueva Minuta</button>
+        </div>
+        <div id="minutas-list"></div>
+      </div>
+
       <div id="tab-plan-cuentas" style="display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <div style="font-size:13px;color:var(--text3);">Plan de cuentas editable. Las cuentas de Ingresos y Gastos/Costos se usan en asientos. Las cuentas de resultado aparecen en tesorería al registrar pagos y cobros.</div>
@@ -1717,7 +1730,7 @@
 <div class="modal-overlay" id="modal-asiento">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Asiento Manual</div>
+      <div class="modal-title">Nueva Minuta Contable</div>
       <button class="modal-close" onclick="closeModal('modal-asiento')">✕</button>
     </div>
     <div class="modal-body">
@@ -2105,21 +2118,95 @@
   </div>
 </div>
 
+
+<!-- MODAL EDITAR MINUTA -->
+<div class="modal-overlay" id="modal-editar-minuta">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">Editar Minuta Contable</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-minuta')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="em-id">
+      <div class="form-row r2">
+        <div class="form-group">
+          <label>Fecha <span class="required">*</span></label>
+          <input type="date" id="em-fecha">
+        </div>
+        <div class="form-group">
+          <label>Descripci&#xF3;n <span class="required">*</span></label>
+          <input type="text" id="em-desc" placeholder="Descripci&#xF3;n del asiento">
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">L&#xED;neas del asiento</div>
+      <div id="em-lineas">
+        <div class="form-row r3" style="font-size:11px;color:var(--text3);padding:0 2px;margin-bottom:4px;">
+          <span>CUENTA</span>
+          <span style="text-align:right;padding-right:8px;">DEBE ($)</span>
+          <span style="text-align:right;padding-right:8px;">HABER ($)</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="addLineaEditarMinuta()">+ Agregar l&#xED;nea</button>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div style="background:var(--bg4);border-radius:6px;padding:6px 14px;text-align:center;min-width:110px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">&#x3A3; Debe</div>
+            <div id="em-total-debe" style="font-size:15px;font-weight:700;color:var(--red);">$0</div>
+          </div>
+          <div style="background:var(--bg4);border-radius:6px;padding:6px 14px;text-align:center;min-width:110px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">&#x3A3; Haber</div>
+            <div id="em-total-haber" style="font-size:15px;font-weight:700;color:var(--green);">$0</div>
+          </div>
+          <div id="em-balance-status" style="background:var(--bg4);border-radius:6px;padding:6px 14px;text-align:center;min-width:130px;border:2px solid var(--border);transition:all 0.2s;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Estado</div>
+            <div id="em-balance-label" style="font-size:13px;font-weight:700;color:var(--text3);">&#x2014;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" style="margin-right:auto;" onclick="confirmarAnularMinuta()">&#x1F5D1; Anular minuta</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-editar-minuta')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-minuta-edit" onclick="guardarEdicionMinuta()" disabled style="opacity:0.5;cursor:not-allowed;">Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR ANULAR MINUTA -->
+<div class="modal-overlay" id="modal-confirm-anular-minuta">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--red);">&#x26A0; Anular minuta</div>
+      <button class="modal-close" onclick="closeModal('modal-confirm-anular-minuta')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-red">
+        <span>&#x26A0;</span>
+        <div>Se generar&#xE1; un <strong>contraasiento autom&#xE1;tico</strong> que revierte el efecto de <strong id="confirm-minuta-desc"></strong>. Esta acci&#xF3;n no se puede deshacer.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-anular-minuta')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-anular-minuta">Anular y revertir</button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== JAVASCRIPT ==================== -->
 <script>
 // ============================================================
 // DATA STORE
 // ============================================================
 const DB = {
-  clientes: [{"tel":"3863548101","dni":"35.029.351","dir":"","alta":"2026-04-04","nombre":"Carrizo Paula","email":"paulambcarrizo@gmail.com","estado":"activo","id":"CLI_1775283631101_j4wh6","fnac":"1990-06-16","wa":"3863548101","obs":""},{"email":"","nombre":"Argañaraz Jose Luis","alta":"2026-04-04","dni":"39.358.032","dir":"","tel":"","obs":"","wa":"","id":"CLI_1775283992793_ww4kj","fnac":"1995-11-01","estado":"activo"}],
-  eventos:  [{"tipo":"Casamiento","estado":"Ejecutado","clienteId":"CLI_1775283631101_j4wh6","fechaEvento":"2026-04-03","precioPP":41341,"total":5085000,"creado":"2026-04-04","horaInicio":"22:00","id":"EVT_1775284232741_cmwsc","horaFin":"05:30","lineas":[{"cant":120,"desc":"Personas","sub":4980000,"precio":41500},{"desc":"Personas","cant":3,"precio":35000,"sub":105000}],"fechaContratacion":"2025-12-20","invitados":123,"obs":"","sena":400000,"salon":"COMPLICES TU LUGAR"}],
-  movimientos: [{"obs":"Registrado automáticamente al crear evento","medio":"Efectivo","eventoId":"EVT_1775284232741_cmwsc","id":"MOV_1775284232742_e53ae","concepto":"Seña · Casamiento · Carrizo Paula","cuentaId":"c1","importe":400000,"tipo":"Cobro","asientoId":"ASI_1775284232742_cden4","fecha":"2026-04-04","subtipo":"Cobro-Cliente"},{"fecha":"2026-03-30","subtipo":"Cobro-Cliente","asientoId":"ASI_1775284575757_qogzk","tipo":"Cobro","importe":1650000,"cuentaId":"c1","id":"MOV_1775284575757_dwtak","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","obs":"","medio":"Transferencia"},{"eventoId":"EVT_1775284232741_cmwsc","medio":"MercadoPago","obs":"","cuentaId":"c3","concepto":"Pago a cuenta","id":"MOV_1775286223454_6wdi5","asientoId":"ASI_1775286223454_5s7y9","importe":2500000,"tipo":"Cobro","subtipo":"Cobro-Cliente","fecha":"2026-03-04"},{"tipo":"Cobro","importe":27000,"asientoId":"ASI_1775286794368_s1k7s","subtipo":"Cobro-Cliente","fecha":"2026-04-02","eventoId":"EVT_1775284232741_cmwsc","obs":"","medio":"Efectivo","cuentaId":"c1","concepto":"Pago a cuenta","id":"MOV_1775286794368_kik79"},{"subtipo":"Cobro-Cliente","fecha":"2026-04-02","asientoId":"ASI_1775287093437_8ts9h","tipo":"Cobro","importe":127000,"cuentaId":"c2","concepto":"Pago a cuenta","id":"MOV_1775287093437_sc4d1","eventoId":"EVT_1775284232741_cmwsc","obs":"","medio":"Transferencia"},{"tipo":"Cobro","importe":381000,"asientoId":"ASI_1775287938469_pog45","subtipo":"Cobro-Cliente","fecha":"2026-04-03","eventoId":"EVT_1775284232741_cmwsc","obs":"","medio":"Efectivo","cuentaId":"c1","concepto":"Cancela Evento","id":"MOV_1775287938469_udnlo"},{"subtipo":"Pago","fecha":"2026-04-03","importe":500000,"tipo":"Pago","asientoId":"ASI_1775409151990_g4wwh","cuentaId":"c1","concepto":"Limpieza","id":"MOV_1775409151990_21r0a","eventoId":"","obs":"","medio":"Efectivo","anulado":true,"fechaAnulacion":"2026-04-05","motivoAnulacion":"Prueba de registracion","contraasientoId":"ASI_1775412277711_bmb6i"},{"id":"MOV_1775412277711_s1v8f","fecha":"2026-04-05","tipo":"Pago","subtipo":"Pago","concepto":"ANULACIÓN: Limpieza","eventoId":"","cuentaId":"c1","importe":500000,"medio":"Efectivo","obs":"Anulación de movimiento MOV_1775409151990_21r0a. Motivo: Prueba de registracion","asientoId":"ASI_1775412277711_bmb6i","esContraasiento":true,"movOrigenId":"MOV_1775409151990_21r0a"}],
-  cuentas:  [{"saldo":2458000,"tipo":"Caja","nombre":"Caja efectivo","id":"c1"},{"saldo":127000,"nombre":"Cuenta banco","id":"c2","tipo":"Banco"},{"saldo":2500000,"tipo":"Virtual","id":"c3","nombre":"MercadoPago"}],
-  costos:   [{"ctaContableId":"5000","estado":"Pagado","id":"GTO_1775289285959_0lmv7","concepto":"Pago a Barrozo","eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03","asientoId":"ASI_1775289285959_pyqwi","importe":1194775,"creado":"2026-04-04","clasif":"Variable"},{"ctaContableId":"5001","estado":"Pagado","concepto":"Pago a Barrozo reintegro de mercaderia","id":"GTO_1775289431882_xsqrn","eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03","asientoId":"ASI_1775289431882_cbikv","importe":976000,"creado":"2026-04-04","clasif":"Variable"},{"eventoId":"EVT_1775284232741_cmwsc","id":"GTO_1775289580331_xgmbh","concepto":"Compra de Servilletas eventos","ctaContableId":"5001","estado":"Pagado","clasif":"Variable","creado":"2026-04-04","importe":15000,"asientoId":"ASI_1775289580331_oybkl","fecha":"2026-04-03"},{"eventoId":"","ctaContableId":"5005","estado":"Pagado","id":"GTO_1775401043702_7rdi0","concepto":"Glicerina para maquina de humo / esponja","importe":35700,"asientoId":"ASI_1775401043702_uyfru","clasif":"Semi Variable","creado":"2026-04-05","fecha":"2026-04-03"},{"fecha":"2026-04-03","asientoId":"ASI_1775401318264_fi166","importe":45000,"creado":"2026-04-05","clasif":"Fijo evento","ctaContableId":"5010","estado":"Pagado","concepto":"Pago derechos","id":"GTO_1775401318264_fke7c","eventoId":"EVT_1775284232741_cmwsc"},{"ctaContableId":"5110","estado":"Pagado","id":"GTO_1775401891792_n48gd","concepto":"Pago a Velazquez Jimena / Aquino Lourdes / Salguero Jorge","eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03","asientoId":"ASI_1775401891792_iqypd","importe":135000,"creado":"2026-04-05","clasif":"Fijo evento"},{"estado":"Pagado","ctaContableId":"5120","id":"GTO_1775403269571_ndjqd","concepto":"Fernandez Leonel","eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03","asientoId":"ASI_1775403269571_r6hmd","importe":120000,"creado":"2026-04-05","clasif":"Fijo evento"},{"ctaContableId":"5130","estado":"Pagado","id":"GTO_1775403592359_ymc9r","concepto":"Sepulveda Ferando","eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03","importe":40000,"asientoId":"ASI_1775403592359_vm4kd","clasif":"Fijo evento","creado":"2026-04-05"},{"asientoId":"ASI_1775403842919_wlikj","importe":80000,"creado":"2026-04-05","clasif":"Fijo evento","fecha":"2026-04-03","eventoId":"EVT_1775284232741_cmwsc","ctaContableId":"5140","estado":"Pagado","id":"GTO_1775403842919_u3n0u","concepto":"Sepulveda Cristian"},{"eventoId":"EVT_1775284232741_cmwsc","estado":"Pagado","ctaContableId":"5100","concepto":"Racedo Ariel","id":"GTO_1775403992078_9i0oc","importe":200000,"asientoId":"ASI_1775403992078_g10kz","clasif":"Fijo evento","creado":"2026-04-05","fecha":"2026-04-03"},{"fecha":"2026-04-03","creado":"2026-04-05","clasif":"Fijo evento","asientoId":"ASI_1775404156621_9pjdg","importe":30000,"concepto":"Salim Emilse / Baño","id":"GTO_1775404156621_4gpzg","estado":"Pagado","ctaContableId":"5150","eventoId":"EVT_1775284232741_cmwsc"},{"eventoId":"EVT_1775284232741_cmwsc","ctaContableId":"5150","estado":"Pagado","concepto":"Rocha Pricila","id":"GTO_1775404492512_gfxu5","importe":40000,"asientoId":"ASI_1775404492512_35fzt","clasif":"Fijo evento","creado":"2026-04-05","fecha":"2026-04-03"}],
-  asientos: [{"origen":"Tesorería","id":"ASI_1775284232742_cden4","descripcion":"Seña recibida · Casamiento · Carrizo Paula","origenId":"MOV_1775284232742_e53ae","fecha":"2026-04-04","lineas":[{"cuenta":"1000","haber":0,"debe":400000,"nombre":"Caja"},{"haber":400000,"cuenta":"2000","nombre":"Anticipos de clientes","debe":0}]},{"origen":"Tesorería","origenId":"MOV_1775284575757_dwtak","lineas":[{"nombre":"Caja","debe":1650000,"haber":0,"cuenta":"1000"},{"cuenta":"2000","haber":1650000,"debe":0,"nombre":"Anticipos de clientes"}],"fecha":"2026-03-30","id":"ASI_1775284575757_qogzk","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula"},{"lineas":[{"nombre":"MercadoPago","debe":2500000,"haber":0,"cuenta":"1020"},{"haber":2500000,"cuenta":"2000","nombre":"Anticipos de clientes","debe":0}],"origenId":"MOV_1775286223454_6wdi5","fecha":"2026-03-04","id":"ASI_1775286223454_5s7y9","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería"},{"origen":"Tesorería","id":"ASI_1775286794368_s1k7s","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","lineas":[{"debe":27000,"nombre":"Caja efectivo","cuenta":"1000","haber":0},{"debe":0,"nombre":"Anticipos de clientes","cuenta":"2000","haber":27000}],"origenId":"MOV_1775286794368_kik79","fecha":"2026-04-02"},{"origen":"Tesorería","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","id":"ASI_1775287093437_8ts9h","origenId":"MOV_1775287093437_sc4d1","fecha":"2026-04-02","lineas":[{"cuenta":"1010","haber":0,"debe":127000,"nombre":"Cuenta banco"},{"haber":127000,"cuenta":"2000","nombre":"Anticipos de clientes","debe":0}]},{"lineas":[{"haber":0,"cuenta":"1000","nombre":"Caja efectivo","debe":381000},{"debe":0,"nombre":"Anticipos de clientes","cuenta":"2000","haber":381000}],"fecha":"2026-04-03","origenId":"MOV_1775287938469_udnlo","id":"ASI_1775287938469_pog45","descripcion":"Cobro cliente · Cancela Evento · Carrizo Paula","origen":"Tesorería"},{"fecha":"2026-04-04","origenId":"EVT_1775284232741_cmwsc","lineas":[{"cuenta":"2000","haber":0,"debe":5085000,"nombre":"Anticipos de clientes"},{"debe":0,"nombre":"Ingresos por eventos","cuenta":"4000","haber":5085000}],"id":"ASI_1775288006181_i0nyi","descripcion":"Ejecución evento · Casamiento · Carrizo Paula · Devengado","origen":"Eventos"},{"origen":"Costos","fecha":"2026-04-03","lineas":[{"cuenta":"5000","haber":0,"debe":1194775,"nombre":"Costo V. catering M.O."},{"nombre":"Proveedores a pagar","debe":0,"haber":1194775,"cuenta":"2010"}],"origenId":"GTO_1775289285959_0lmv7","descripcion":"Pago a Barrozo · Carrizo Paula","id":"ASI_1775289285959_pyqwi"},{"origen":"Costos","fecha":"2026-04-03","lineas":[{"nombre":"Costo V. catering mercaderia","debe":976000,"haber":0,"cuenta":"5001"},{"haber":976000,"cuenta":"2010","nombre":"Proveedores a pagar","debe":0}],"origenId":"GTO_1775289431882_xsqrn","id":"ASI_1775289431882_cbikv","descripcion":"Pago a Barrozo reintegro de mercaderia · Carrizo Paula"},{"descripcion":"Compra de Servilletas eventos · Carrizo Paula","id":"ASI_1775289580331_oybkl","origenId":"GTO_1775289580331_xgmbh","fecha":"2026-04-03","lineas":[{"haber":0,"cuenta":"5001","nombre":"Costo V. catering mercaderia","debe":15000},{"debe":0,"nombre":"Proveedores a pagar","cuenta":"2010","haber":15000}],"origen":"Costos"},{"descripcion":"Glicerina para maquina de humo / esponja","id":"ASI_1775401043702_uyfru","origenId":"GTO_1775401043702_7rdi0","fecha":"2026-04-03","lineas":[{"debe":35700,"nombre":"Costos S. V. Art. Limpieza / Insumos","cuenta":"5005","haber":0},{"haber":35700,"cuenta":"2010","nombre":"Proveedores a pagar","debe":0}],"origen":"Costos"},{"lineas":[{"nombre":"Costos fijos del evento AADI CAPIF","debe":45000,"haber":0,"cuenta":"5010"},{"haber":45000,"cuenta":"2010","nombre":"Proveedores a pagar","debe":0}],"fecha":"2026-04-03","origenId":"GTO_1775401318264_fke7c","descripcion":"Pago derechos · Carrizo Paula","id":"ASI_1775401318264_fi166","origen":"Costos"},{"origen":"Costos","descripcion":"Pago a Velazquez Jimena / Aquino Lourdes / Salguero Jorge · Carrizo Paula","id":"ASI_1775401891792_iqypd","lineas":[{"debe":135000,"nombre":"Costo F. Mozos","cuenta":"5110","haber":0},{"nombre":"Proveedores a pagar","debe":0,"haber":135000,"cuenta":"2010"}],"fecha":"2026-04-03","origenId":"GTO_1775401891792_n48gd"},{"origen":"Costos","lineas":[{"haber":0,"cuenta":"5120","nombre":"Costo F. Locutor","debe":120000},{"nombre":"Proveedores a pagar","debe":0,"haber":120000,"cuenta":"2010"}],"fecha":"2026-04-03","origenId":"GTO_1775403269571_ndjqd","id":"ASI_1775403269571_r6hmd","descripcion":"Fernandez Leonel · Carrizo Paula"},{"id":"ASI_1775403592359_vm4kd","descripcion":"Sepulveda Ferando · Carrizo Paula","lineas":[{"debe":40000,"nombre":"Costo F. Portero","cuenta":"5130","haber":0},{"nombre":"Proveedores a pagar","debe":0,"haber":40000,"cuenta":"2010"}],"origenId":"GTO_1775403592359_ymc9r","fecha":"2026-04-03","origen":"Costos"},{"lineas":[{"haber":0,"cuenta":"5140","nombre":"Costo F. Iluminador","debe":80000},{"cuenta":"2010","haber":80000,"debe":0,"nombre":"Proveedores a pagar"}],"origenId":"GTO_1775403842919_u3n0u","fecha":"2026-04-03","id":"ASI_1775403842919_wlikj","descripcion":"Sepulveda Cristian · Carrizo Paula","origen":"Costos"},{"origen":"Costos","fecha":"2026-04-03","origenId":"GTO_1775403992078_9i0oc","lineas":[{"debe":200000,"nombre":"Costo F. DJ / Música","cuenta":"5100","haber":0},{"debe":0,"nombre":"Proveedores a pagar","cuenta":"2010","haber":200000}],"descripcion":"Racedo Ariel · Carrizo Paula","id":"ASI_1775403992078_g10kz"},{"origen":"Costos","lineas":[{"haber":0,"cuenta":"5150","nombre":"Costo F. Limpieza-evento","debe":30000},{"debe":0,"nombre":"Proveedores a pagar","cuenta":"2010","haber":30000}],"fecha":"2026-04-03","origenId":"GTO_1775404156621_4gpzg","descripcion":"Salim Emilse / Baño · Carrizo Paula","id":"ASI_1775404156621_9pjdg"},{"descripcion":"Rocha Pricila · Carrizo Paula","id":"ASI_1775404492512_35fzt","fecha":"2026-04-03","origenId":"GTO_1775404492512_gfxu5","lineas":[{"cuenta":"5150","haber":0,"debe":40000,"nombre":"Costo F. Limpieza-evento"},{"haber":40000,"cuenta":"2010","nombre":"Proveedores a pagar","debe":0}],"origen":"Costos"},{"origen":"Tesorería","descripcion":"Pago · Limpieza","id":"ASI_1775409151990_g4wwh","fecha":"2026-04-03","origenId":"MOV_1775409151990_21r0a","lineas":[{"cuenta":"5030","haber":0,"debe":500000,"nombre":"Gastos operativos"},{"cuenta":"1000","haber":500000,"debe":0,"nombre":"Caja efectivo"}],"anulado":true,"fechaAnulacion":"2026-04-05"},{"id":"ASI_1775412277711_bmb6i","fecha":"2026-04-05","descripcion":"CONTRAASIENTO · Anulación · Pago · Limpieza","origen":"Anulación","origenId":"MOV_1775409151990_21r0a","motivoAnulacion":"Prueba de registracion","esContraasiento":true,"asientoAnuladoId":"ASI_1775409151990_g4wwh","lineas":[{"cuenta":"5030","nombre":"Gastos operativos","debe":0,"haber":500000},{"cuenta":"1000","nombre":"Caja efectivo","debe":500000,"haber":0}]}],
+  clientes: [{"dni":"35.029.351","nombre":"Carrizo Paula","dir":"","obs":"","estado":"activo","alta":"2026-04-04","email":"paulambcarrizo@gmail.com","fnac":"1990-06-16","wa":"3863548101","id":"CLI_1775283631101_j4wh6","tel":"3863548101"},{"nombre":"Argañaraz Jose Luis","dir":"","dni":"39.358.032","estado":"activo","alta":"2026-04-04","fnac":"1995-11-01","email":"","id":"CLI_1775283992793_ww4kj","wa":"","tel":"","obs":""}],
+  eventos:  [{"lineas":[{"cant":120,"desc":"Personas","sub":4980000,"precio":41500},{"precio":35000,"sub":105000,"desc":"Personas","cant":3}],"creado":"2026-04-04","salon":"COMPLICES TU LUGAR","tipo":"Casamiento","fechaEvento":"2026-04-03","id":"EVT_1775284232741_cmwsc","sena":400000,"obs":"","total":5085000,"precioPP":41341,"clienteId":"CLI_1775283631101_j4wh6","estado":"Ejecutado","fechaContratacion":"2025-12-20","horaInicio":"22:00","horaFin":"05:30","invitados":123}],
+  movimientos: [{"fecha":"2026-04-04","subtipo":"Cobro-Cliente","importe":400000,"eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","concepto":"Seña · Casamiento · Carrizo Paula","medio":"Efectivo","tipo":"Cobro","id":"MOV_1775284232742_e53ae","asientoId":"ASI_1775284232742_cden4","obs":"Registrado automáticamente al crear evento"},{"obs":"","asientoId":"ASI_1775284575757_qogzk","id":"MOV_1775284575757_dwtak","tipo":"Cobro","medio":"Transferencia","concepto":"Pago a cuenta","cuentaId":"c1","importe":1650000,"eventoId":"EVT_1775284232741_cmwsc","subtipo":"Cobro-Cliente","fecha":"2026-03-30"},{"obs":"","asientoId":"ASI_1775286223454_5s7y9","id":"MOV_1775286223454_6wdi5","tipo":"Cobro","medio":"MercadoPago","concepto":"Pago a cuenta","cuentaId":"c3","eventoId":"EVT_1775284232741_cmwsc","importe":2500000,"subtipo":"Cobro-Cliente","fecha":"2026-03-04"},{"subtipo":"Cobro-Cliente","fecha":"2026-04-02","cuentaId":"c1","eventoId":"EVT_1775284232741_cmwsc","importe":27000,"concepto":"Pago a cuenta","medio":"Efectivo","id":"MOV_1775286794368_kik79","asientoId":"ASI_1775286794368_s1k7s","tipo":"Cobro","obs":""},{"obs":"","medio":"Transferencia","asientoId":"ASI_1775287093437_8ts9h","id":"MOV_1775287093437_sc4d1","tipo":"Cobro","cuentaId":"c2","importe":127000,"eventoId":"EVT_1775284232741_cmwsc","concepto":"Pago a cuenta","subtipo":"Cobro-Cliente","fecha":"2026-04-02"},{"medio":"Efectivo","id":"MOV_1775287938469_udnlo","asientoId":"ASI_1775287938469_pog45","tipo":"Cobro","obs":"","subtipo":"Cobro-Cliente","fecha":"2026-04-03","cuentaId":"c1","eventoId":"EVT_1775284232741_cmwsc","importe":381000,"concepto":"Cancela Evento"},{"tipo":"Pago","asientoId":"ASI_1775409151990_g4wwh","id":"MOV_1775409151990_21r0a","medio":"Efectivo","motivoAnulacion":"Prueba de registracion","obs":"","fechaAnulacion":"2026-04-05","subtipo":"Pago","concepto":"Limpieza","eventoId":"","anulado":true,"contraasientoId":"ASI_1775412277711_bmb6i","fecha":"2026-04-03","importe":500000,"cuentaId":"c1"},{"importe":500000,"cuentaId":"c1","fecha":"2026-04-05","movOrigenId":"MOV_1775409151990_21r0a","obs":"Anulación de movimiento MOV_1775409151990_21r0a. Motivo: Prueba de registracion","medio":"Efectivo","tipo":"Pago","id":"MOV_1775412277711_s1v8f","asientoId":"ASI_1775412277711_bmb6i","eventoId":"","concepto":"ANULACIÓN: Limpieza","esContraasiento":true,"subtipo":"Pago"}],
+  cuentas:  [{"saldo":2458000,"tipo":"Caja","nombre":"Caja efectivo","id":"c1"},{"tipo":"Banco","id":"c2","nombre":"Cuenta banco","saldo":127000},{"id":"c3","nombre":"MercadoPago","tipo":"Virtual","saldo":2500000}],
+  costos:   [{"fecha":"2026-04-03","importe":1194775,"eventoId":"EVT_1775284232741_cmwsc","creado":"2026-04-04","concepto":"Pago a Barrozo","estado":"Pagado","clasif":"Variable","id":"GTO_1775289285959_0lmv7","asientoId":"ASI_1775289285959_pyqwi","ctaContableId":"5000"},{"eventoId":"EVT_1775284232741_cmwsc","importe":976000,"creado":"2026-04-04","concepto":"Pago a Barrozo reintegro de mercaderia","fecha":"2026-04-03","ctaContableId":"5001","estado":"Pagado","clasif":"Variable","asientoId":"ASI_1775289431882_cbikv","id":"GTO_1775289431882_xsqrn"},{"clasif":"Variable","estado":"Pagado","id":"GTO_1775289580331_xgmbh","asientoId":"ASI_1775289580331_oybkl","ctaContableId":"5001","fecha":"2026-04-03","creado":"2026-04-04","eventoId":"EVT_1775284232741_cmwsc","importe":15000,"concepto":"Compra de Servilletas eventos"},{"asientoId":"ASI_1775401043702_uyfru","id":"GTO_1775401043702_7rdi0","estado":"Pagado","clasif":"Semi Variable","ctaContableId":"5005","fecha":"2026-04-03","concepto":"Glicerina para maquina de humo / esponja","creado":"2026-04-05","eventoId":"","importe":35700},{"fecha":"2026-04-03","creado":"2026-04-05","eventoId":"EVT_1775284232741_cmwsc","importe":45000,"concepto":"Pago derechos","estado":"Pagado","clasif":"Fijo evento","asientoId":"ASI_1775401318264_fi166","id":"GTO_1775401318264_fke7c","ctaContableId":"5010"},{"fecha":"2026-04-03","concepto":"Pago a Velazquez Jimena / Aquino Lourdes / Salguero Jorge","creado":"2026-04-05","importe":135000,"eventoId":"EVT_1775284232741_cmwsc","asientoId":"ASI_1775401891792_iqypd","id":"GTO_1775401891792_n48gd","clasif":"Fijo evento","estado":"Pagado","ctaContableId":"5110"},{"fecha":"2026-04-03","concepto":"Fernandez Leonel","importe":120000,"eventoId":"EVT_1775284232741_cmwsc","creado":"2026-04-05","id":"GTO_1775403269571_ndjqd","asientoId":"ASI_1775403269571_r6hmd","clasif":"Fijo evento","estado":"Pagado","ctaContableId":"5120"},{"ctaContableId":"5130","id":"GTO_1775403592359_ymc9r","asientoId":"ASI_1775403592359_vm4kd","clasif":"Fijo evento","estado":"Pagado","concepto":"Sepulveda Ferando","creado":"2026-04-05","importe":40000,"eventoId":"EVT_1775284232741_cmwsc","fecha":"2026-04-03"},{"concepto":"Sepulveda Cristian","importe":80000,"eventoId":"EVT_1775284232741_cmwsc","creado":"2026-04-05","fecha":"2026-04-03","ctaContableId":"5140","asientoId":"ASI_1775403842919_wlikj","id":"GTO_1775403842919_u3n0u","clasif":"Fijo evento","estado":"Pagado"},{"asientoId":"ASI_1775403992078_g10kz","id":"GTO_1775403992078_9i0oc","clasif":"Fijo evento","estado":"Pagado","ctaContableId":"5100","fecha":"2026-04-03","concepto":"Racedo Ariel","creado":"2026-04-05","eventoId":"EVT_1775284232741_cmwsc","importe":200000},{"fecha":"2026-04-03","importe":30000,"eventoId":"EVT_1775284232741_cmwsc","creado":"2026-04-05","concepto":"Salim Emilse / Baño","clasif":"Fijo evento","estado":"Pagado","asientoId":"ASI_1775404156621_9pjdg","id":"GTO_1775404156621_4gpzg","ctaContableId":"5150"},{"id":"GTO_1775404492512_gfxu5","asientoId":"ASI_1775404492512_35fzt","clasif":"Fijo evento","estado":"Pagado","ctaContableId":"5150","fecha":"2026-04-03","concepto":"Rocha Pricila","creado":"2026-04-05","importe":40000,"eventoId":"EVT_1775284232741_cmwsc"}],
+  asientos: [{"origenId":"MOV_1775284232742_e53ae","descripcion":"Seña recibida · Casamiento · Carrizo Paula","fecha":"2026-04-04","id":"ASI_1775284232742_cden4","lineas":[{"nombre":"Caja","haber":0,"cuenta":"1000","debe":400000},{"cuenta":"2000","debe":0,"nombre":"Anticipos de clientes","haber":400000}],"origen":"Tesorería"},{"lineas":[{"debe":1650000,"cuenta":"1000","haber":0,"nombre":"Caja"},{"cuenta":"2000","debe":0,"nombre":"Anticipos de clientes","haber":1650000}],"origen":"Tesorería","id":"ASI_1775284575757_qogzk","fecha":"2026-03-30","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origenId":"MOV_1775284575757_dwtak"},{"origenId":"MOV_1775286223454_6wdi5","id":"ASI_1775286223454_5s7y9","origen":"Tesorería","lineas":[{"cuenta":"1020","debe":2500000,"nombre":"MercadoPago","haber":0},{"haber":2500000,"nombre":"Anticipos de clientes","debe":0,"cuenta":"2000"}],"fecha":"2026-03-04","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula"},{"origenId":"MOV_1775286794368_kik79","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","fecha":"2026-04-02","id":"ASI_1775286794368_s1k7s","lineas":[{"debe":27000,"cuenta":"1000","haber":0,"nombre":"Caja efectivo"},{"cuenta":"2000","debe":0,"nombre":"Anticipos de clientes","haber":27000}],"origen":"Tesorería"},{"origenId":"MOV_1775287093437_sc4d1","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","id":"ASI_1775287093437_8ts9h","origen":"Tesorería","lineas":[{"haber":0,"nombre":"Cuenta banco","debe":127000,"cuenta":"1010"},{"nombre":"Anticipos de clientes","haber":127000,"cuenta":"2000","debe":0}]},{"fecha":"2026-04-03","descripcion":"Cobro cliente · Cancela Evento · Carrizo Paula","origen":"Tesorería","lineas":[{"cuenta":"1000","debe":381000,"nombre":"Caja efectivo","haber":0},{"cuenta":"2000","debe":0,"nombre":"Anticipos de clientes","haber":381000}],"id":"ASI_1775287938469_pog45","origenId":"MOV_1775287938469_udnlo"},{"origenId":"EVT_1775284232741_cmwsc","id":"ASI_1775288006181_i0nyi","origen":"Eventos","lineas":[{"nombre":"Anticipos de clientes","haber":0,"cuenta":"2000","debe":5085000},{"debe":0,"cuenta":"4000","haber":5085000,"nombre":"Ingresos por eventos"}],"descripcion":"Ejecución evento · Casamiento · Carrizo Paula · Devengado","fecha":"2026-04-04"},{"fecha":"2026-04-03","descripcion":"Pago a Barrozo · Carrizo Paula","lineas":[{"haber":0,"nombre":"Costo V. catering M.O.","debe":1194775,"cuenta":"5000"},{"haber":1194775,"nombre":"Proveedores a pagar","debe":0,"cuenta":"2010"}],"origen":"Costos","id":"ASI_1775289285959_pyqwi","origenId":"GTO_1775289285959_0lmv7"},{"id":"ASI_1775289431882_cbikv","origen":"Costos","lineas":[{"cuenta":"5001","debe":976000,"nombre":"Costo V. catering mercaderia","haber":0},{"cuenta":"2010","debe":0,"nombre":"Proveedores a pagar","haber":976000}],"fecha":"2026-04-03","descripcion":"Pago a Barrozo reintegro de mercaderia · Carrizo Paula","origenId":"GTO_1775289431882_xsqrn"},{"id":"ASI_1775289580331_oybkl","lineas":[{"debe":15000,"cuenta":"5001","haber":0,"nombre":"Costo V. catering mercaderia"},{"cuenta":"2010","debe":0,"nombre":"Proveedores a pagar","haber":15000}],"origen":"Costos","fecha":"2026-04-03","descripcion":"Compra de Servilletas eventos · Carrizo Paula","origenId":"GTO_1775289580331_xgmbh"},{"descripcion":"Glicerina para maquina de humo / esponja","fecha":"2026-04-03","origen":"Costos","lineas":[{"debe":35700,"cuenta":"5005","haber":0,"nombre":"Costos S. V. Art. Limpieza / Insumos"},{"haber":35700,"nombre":"Proveedores a pagar","debe":0,"cuenta":"2010"}],"id":"ASI_1775401043702_uyfru","origenId":"GTO_1775401043702_7rdi0"},{"id":"ASI_1775401318264_fi166","lineas":[{"cuenta":"5010","debe":45000,"nombre":"Costos fijos del evento AADI CAPIF","haber":0},{"haber":45000,"nombre":"Proveedores a pagar","debe":0,"cuenta":"2010"}],"origen":"Costos","descripcion":"Pago derechos · Carrizo Paula","fecha":"2026-04-03","origenId":"GTO_1775401318264_fke7c"},{"id":"ASI_1775401891792_iqypd","lineas":[{"haber":0,"nombre":"Costo F. Mozos","debe":135000,"cuenta":"5110"},{"cuenta":"2010","debe":0,"nombre":"Proveedores a pagar","haber":135000}],"origen":"Costos","fecha":"2026-04-03","descripcion":"Pago a Velazquez Jimena / Aquino Lourdes / Salguero Jorge · Carrizo Paula","origenId":"GTO_1775401891792_n48gd"},{"origenId":"GTO_1775403269571_ndjqd","lineas":[{"nombre":"Costo F. Locutor","haber":0,"cuenta":"5120","debe":120000},{"debe":0,"cuenta":"2010","haber":120000,"nombre":"Proveedores a pagar"}],"origen":"Costos","id":"ASI_1775403269571_r6hmd","fecha":"2026-04-03","descripcion":"Fernandez Leonel · Carrizo Paula"},{"origenId":"GTO_1775403592359_ymc9r","descripcion":"Sepulveda Ferando · Carrizo Paula","fecha":"2026-04-03","id":"ASI_1775403592359_vm4kd","origen":"Costos","lineas":[{"haber":0,"nombre":"Costo F. Portero","debe":40000,"cuenta":"5130"},{"cuenta":"2010","debe":0,"nombre":"Proveedores a pagar","haber":40000}]},{"origenId":"GTO_1775403842919_u3n0u","descripcion":"Sepulveda Cristian · Carrizo Paula","fecha":"2026-04-03","id":"ASI_1775403842919_wlikj","lineas":[{"debe":80000,"cuenta":"5140","haber":0,"nombre":"Costo F. Iluminador"},{"cuenta":"2010","debe":0,"nombre":"Proveedores a pagar","haber":80000}],"origen":"Costos"},{"origenId":"GTO_1775403992078_9i0oc","descripcion":"Racedo Ariel · Carrizo Paula","fecha":"2026-04-03","id":"ASI_1775403992078_g10kz","lineas":[{"nombre":"Costo F. DJ / Música","haber":0,"cuenta":"5100","debe":200000},{"nombre":"Proveedores a pagar","haber":200000,"cuenta":"2010","debe":0}],"origen":"Costos"},{"id":"ASI_1775404156621_9pjdg","lineas":[{"debe":30000,"cuenta":"5150","haber":0,"nombre":"Costo F. Limpieza-evento"},{"haber":30000,"nombre":"Proveedores a pagar","debe":0,"cuenta":"2010"}],"origen":"Costos","descripcion":"Salim Emilse / Baño · Carrizo Paula","fecha":"2026-04-03","origenId":"GTO_1775404156621_4gpzg"},{"origenId":"GTO_1775404492512_gfxu5","id":"ASI_1775404492512_35fzt","origen":"Costos","lineas":[{"nombre":"Costo F. Limpieza-evento","haber":0,"cuenta":"5150","debe":40000},{"haber":40000,"nombre":"Proveedores a pagar","debe":0,"cuenta":"2010"}],"descripcion":"Rocha Pricila · Carrizo Paula","fecha":"2026-04-03"},{"lineas":[{"cuenta":"5030","debe":500000,"nombre":"Gastos operativos","haber":0},{"nombre":"Caja efectivo","haber":500000,"cuenta":"1000","debe":0}],"fechaAnulacion":"2026-04-05","fecha":"2026-04-03","origen":"Tesorería","id":"ASI_1775409151990_g4wwh","descripcion":"Pago · Limpieza","anulado":true,"origenId":"MOV_1775409151990_21r0a"},{"origenId":"MOV_1775409151990_21r0a","motivoAnulacion":"Prueba de registracion","id":"ASI_1775412277711_bmb6i","origen":"Anulación","descripcion":"CONTRAASIENTO · Anulación · Pago · Limpieza","asientoAnuladoId":"ASI_1775409151990_g4wwh","esContraasiento":true,"lineas":[{"haber":500000,"nombre":"Gastos operativos","debe":0,"cuenta":"5030"},{"nombre":"Caja efectivo","haber":0,"cuenta":"1000","debe":500000}],"fecha":"2026-04-05"},{"fecha":"2026-04-03","descripcion":"Ajuste saldos fue pagado.","id":"ASI_1775414817829_ud0cx","lineas":[{"cuenta":"2010","debe":2911475,"nombre":"Proveedores a pagar","haber":0},{"cuenta":"1000","debe":0,"nombre":"Caja","haber":2911475}],"origen":"Minuta"}],
   config:   {"precioPP":0,"senaPct":30,"nombre":"Cómplices · Tu Lugar"},
   nextId:   {"c":1,"e":1,"m":1,"a":1,"g":1},
-  planCuentas: [{"subgrupo":"Disponibilidades","nombre":"Caja","grupo":"ACTIVO","id":"1000","uso":"contabilidad"},{"nombre":"Bancos","subgrupo":"Disponibilidades","grupo":"ACTIVO","uso":"contabilidad","id":"1010"},{"subgrupo":"Disponibilidades","nombre":"Billeteras virtuales","grupo":"ACTIVO","id":"1020","uso":"contabilidad"},{"uso":"contabilidad","id":"1100","grupo":"ACTIVO","nombre":"Cuentas a cobrar clientes","subgrupo":"Créditos"},{"grupo":"ACTIVO","nombre":"Otros créditos","subgrupo":"Créditos","uso":"contabilidad","id":"1110"},{"subgrupo":"Pasivo corriente","nombre":"Anticipos de clientes","grupo":"PASIVO","id":"2000","uso":"contabilidad"},{"id":"2010","uso":"contabilidad","grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Proveedores a pagar"},{"id":"2020","uso":"contabilidad","grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Otras deudas"},{"grupo":"INGRESOS","nombre":"Ingresos por eventos","subgrupo":"Ingresos operativos","uso":"cobros","id":"4000"},{"grupo":"INGRESOS","subgrupo":"Ingresos operativos","nombre":"Ingresos por penalidades / cancelaciones","id":"4010","uso":"cobros"},{"uso":"cobros","id":"4020","grupo":"INGRESOS","nombre":"Ingresos varios","subgrupo":"Ingresos operativos"},{"id":"5000","uso":"pagos","subgrupo":"Costos variables","nombre":"Costo V. catering M.O.","grupo":"COSTOS","clasif":"Variable"},{"id":"5001","uso":"pagos","subgrupo":"Costos variables","nombre":"Costo V. catering mercaderia","grupo":"COSTOS","clasif":"Variable"},{"uso":"pagos","id":"5005","grupo":"COSTOS","clasif":"Semi Variable","nombre":"Costos S. V. Art. Limpieza / Insumos","subgrupo":"Costos semi variables"},{"id":"5006","uso":"pagos","grupo":"COSTOS","clasif":"Semi Variable","subgrupo":"Costos semi variables","nombre":"Costo SV. personal eventual"},{"subgrupo":"Costos semi variables","nombre":"Costo SV. energía / combustible","clasif":"Semi Variable","grupo":"COSTOS","id":"5007","uso":"pagos"},{"uso":"pagos","id":"5008","grupo":"COSTOS","clasif":"Semi Variable","nombre":"Costo SV. mantenimiento operativo","subgrupo":"Costos semi variables"},{"id":"5010","uso":"pagos","subgrupo":"Costos fijos evento","nombre":"Costos fijos del evento AADI CAPIF","grupo":"COSTOS","clasif":"Fijo evento"},{"id":"5100","uso":"pagos","subgrupo":"Costos fijos evento","nombre":"Costo F. DJ / Música","clasif":"Fijo evento","grupo":"COSTOS"},{"grupo":"COSTOS","clasif":"Fijo evento","nombre":"Costo F. Mozos","subgrupo":"Costos Fijos","uso":"pagos","id":"5110"},{"id":"5120","uso":"pagos","subgrupo":"Costos fijos evento","nombre":"Costo F. Locutor","grupo":"COSTOS","clasif":"Fijo evento"},{"id":"5130","uso":"pagos","subgrupo":"Costos fijo","nombre":"Costo F. Portero","grupo":"COSTOS","clasif":"Fijo evento"},{"subgrupo":"Costos fijos evento","nombre":"Costo F. Iluminador","clasif":"Fijo evento","grupo":"COSTOS","id":"5140","uso":"pagos"},{"grupo":"COSTOS","clasif":"Fijo evento","nombre":"Costo F. Limpieza-evento","subgrupo":"Costos fijos evento","uso":"pagos","id":"5150"},{"clasif":"Variable","grupo":"COSTOS","subgrupo":"Costos variables","nombre":"Personal eventual","id":"5160","uso":"pagos"},{"id":"5020","uso":"pagos","grupo":"COSTOS","clasif":"Estructura","subgrupo":"Estructura","nombre":"Costos fijos de estructura"},{"id":"5030","uso":"pagos","grupo":"GASTOS","subgrupo":"Operativos","nombre":"Gastos operativos"},{"id":"5040","uso":"pagos","grupo":"GASTOS","subgrupo":"Administrativos","nombre":"Gastos administrativos"},{"grupo":"GASTOS","clasif":"Estructura","nombre":"Sueldos y cargas sociales","subgrupo":"Personal","uso":"pagos","id":"5050"},{"id":"5060","uso":"pagos","grupo":"GASTOS","clasif":"Estructura","subgrupo":"Estructura","nombre":"Alquiler del local"},{"uso":"pagos","id":"5070","nombre":"Servicios (luz, agua, gas)","subgrupo":"Estructura","grupo":"GASTOS","clasif":"Estructura"},{"uso":"pagos","id":"5080","grupo":"GASTOS","nombre":"Publicidad y marketing","subgrupo":"Comerciales"},{"grupo":"GASTOS","nombre":"Mantenimiento y reparaciones","subgrupo":"Operativos","uso":"pagos","id":"5090"},{"grupo":"GASTOS","nombre":"Gastos financieros","subgrupo":"Financieros","uso":"pagos","id":"5900"}]
+  planCuentas: [{"id":"1000","grupo":"ACTIVO","nombre":"Caja","subgrupo":"Disponibilidades","uso":"contabilidad"},{"uso":"contabilidad","subgrupo":"Disponibilidades","nombre":"Bancos","id":"1010","grupo":"ACTIVO"},{"nombre":"Billeteras virtuales","grupo":"ACTIVO","id":"1020","subgrupo":"Disponibilidades","uso":"contabilidad"},{"id":"1100","grupo":"ACTIVO","nombre":"Cuentas a cobrar clientes","uso":"contabilidad","subgrupo":"Créditos"},{"id":"1110","grupo":"ACTIVO","nombre":"Otros créditos","uso":"contabilidad","subgrupo":"Créditos"},{"nombre":"Anticipos de clientes","grupo":"PASIVO","id":"2000","uso":"contabilidad","subgrupo":"Pasivo corriente"},{"id":"2010","grupo":"PASIVO","nombre":"Proveedores a pagar","subgrupo":"Pasivo corriente","uso":"contabilidad"},{"grupo":"PASIVO","nombre":"Otras deudas","id":"2020","subgrupo":"Pasivo corriente","uso":"contabilidad"},{"nombre":"Ingresos por eventos","id":"4000","grupo":"INGRESOS","uso":"cobros","subgrupo":"Ingresos operativos"},{"id":"4010","nombre":"Ingresos por penalidades / cancelaciones","grupo":"INGRESOS","uso":"cobros","subgrupo":"Ingresos operativos"},{"grupo":"INGRESOS","nombre":"Ingresos varios","id":"4020","uso":"cobros","subgrupo":"Ingresos operativos"},{"nombre":"Costo V. catering M.O.","grupo":"COSTOS","id":"5000","clasif":"Variable","subgrupo":"Costos variables","uso":"pagos"},{"grupo":"COSTOS","nombre":"Costo V. catering mercaderia","id":"5001","clasif":"Variable","subgrupo":"Costos variables","uso":"pagos"},{"grupo":"COSTOS","id":"5005","nombre":"Costos S. V. Art. Limpieza / Insumos","clasif":"Semi Variable","subgrupo":"Costos semi variables","uso":"pagos"},{"subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos","id":"5006","nombre":"Costo SV. personal eventual","grupo":"COSTOS"},{"nombre":"Costo SV. energía / combustible","grupo":"COSTOS","id":"5007","subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos"},{"id":"5008","nombre":"Costo SV. mantenimiento operativo","grupo":"COSTOS","clasif":"Semi Variable","subgrupo":"Costos semi variables","uso":"pagos"},{"grupo":"COSTOS","id":"5010","nombre":"Costos fijos del evento AADI CAPIF","uso":"pagos","clasif":"Fijo evento","subgrupo":"Costos fijos evento"},{"grupo":"COSTOS","nombre":"Costo F. DJ / Música","id":"5100","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"subgrupo":"Costos Fijos","clasif":"Fijo evento","uso":"pagos","id":"5110","grupo":"COSTOS","nombre":"Costo F. Mozos"},{"subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos","grupo":"COSTOS","id":"5120","nombre":"Costo F. Locutor"},{"uso":"pagos","subgrupo":"Costos fijo","clasif":"Fijo evento","nombre":"Costo F. Portero","id":"5130","grupo":"COSTOS"},{"id":"5140","nombre":"Costo F. Iluminador","grupo":"COSTOS","uso":"pagos","subgrupo":"Costos fijos evento","clasif":"Fijo evento"},{"id":"5150","nombre":"Costo F. Limpieza-evento","grupo":"COSTOS","clasif":"Fijo evento","subgrupo":"Costos fijos evento","uso":"pagos"},{"subgrupo":"Costos variables","clasif":"Variable","uso":"pagos","id":"5160","grupo":"COSTOS","nombre":"Personal eventual"},{"clasif":"Estructura","subgrupo":"Estructura","uso":"pagos","nombre":"Costos fijos de estructura","grupo":"COSTOS","id":"5020"},{"grupo":"GASTOS","id":"5030","nombre":"Gastos operativos","uso":"pagos","subgrupo":"Operativos"},{"subgrupo":"Administrativos","uso":"pagos","id":"5040","grupo":"GASTOS","nombre":"Gastos administrativos"},{"subgrupo":"Personal","clasif":"Estructura","uso":"pagos","grupo":"GASTOS","id":"5050","nombre":"Sueldos y cargas sociales"},{"id":"5060","nombre":"Alquiler del local","grupo":"GASTOS","uso":"pagos","clasif":"Estructura","subgrupo":"Estructura"},{"clasif":"Estructura","subgrupo":"Estructura","uso":"pagos","id":"5070","nombre":"Servicios (luz, agua, gas)","grupo":"GASTOS"},{"id":"5080","grupo":"GASTOS","nombre":"Publicidad y marketing","subgrupo":"Comerciales","uso":"pagos"},{"uso":"pagos","subgrupo":"Operativos","nombre":"Mantenimiento y reparaciones","id":"5090","grupo":"GASTOS"},{"uso":"pagos","subgrupo":"Financieros","nombre":"Gastos financieros","id":"5900","grupo":"GASTOS"}]
 };
 
 // ============================================================
@@ -2519,7 +2606,7 @@ const topbarActions = {
   cuentas_corrientes: { label: '', action: '' },
   flujo_fondos: { label: '', action: '' },
   caja_bancos: { label: '+ Nueva Cuenta', action: "openModal('modal-cuenta')" },
-  contabilidad: { label: '+ Asiento Manual', action: "openModal('modal-asiento')" },
+  contabilidad: { label: '+ Minuta Contable', action: "openModal('modal-asiento')" },
   resultado: { label: '', action: '' },
   reportes: { label: '', action: '' },
   bi: { label: '', action: '' },
@@ -3364,10 +3451,11 @@ function renderContabilidad() {
 function switchTab(el, tabId) {
   document.querySelectorAll('#view-contabilidad .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['libro-diario','mayor','plan-cuentas','balance'].forEach(id => {
+  ['libro-diario','mayor','minutas','plan-cuentas','balance'].forEach(id => {
     document.getElementById('tab-'+id).style.display = id === tabId ? '' : 'none';
   });
   if (tabId === 'mayor') renderMayor();
+  if (tabId === 'minutas') renderMinutas();
   if (tabId === 'plan-cuentas') renderPlanCuentas();
   if (tabId === 'balance') renderBalance();
 }
@@ -3762,7 +3850,8 @@ function guardarAsiento() {
     mostrarToast(`⚠ Asiento desbalanceado: Debe ${fmt(totalDebe)} ≠ Haber ${fmt(totalHaber)}`, 'amber');
     return;
   }
-  registrarAsientoContable({ id: uid('ASI'), fecha, descripcion: desc, origen: 'Manual', lineas });
+  registrarAsientoContable({ id: uid('ASI'), fecha, descripcion: desc, origen: 'Minuta', lineas });
+  renderMinutas();
   saveDB(true);
   closeModal('modal-asiento');
   renderLibroDiario();
@@ -5346,6 +5435,253 @@ function confirmarEliminarGasto() {
     mostrarToast('Registro eliminado: ' + g.concepto, 'amber');
   };
   openModal('modal-confirm-eliminar-gasto');
+}
+
+
+// ============================================================
+// MINUTAS CONTABLES
+// ============================================================
+function renderMinutas() {
+  const el = document.getElementById('minutas-list');
+  if (!el) return;
+  const minutas = DB.asientos
+    .filter(a => a.origen === 'Minuta' || a.origen === 'Manual')
+    .sort((a,b) => b.fecha > a.fecha ? 1 : -1);
+
+  if (!minutas.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:60px 0;text-align:center;color:var(--text3);">
+      <div style="font-size:32px;margin-bottom:12px;">📋</div>
+      <div>No hay minutas contables registradas.</div>
+      <div style="font-size:12px;margin-top:6px;">Usá el botón "+ Nueva Minuta" para crear asientos de ajuste.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = minutas.map(a => {
+    const isAnulado = !!a.anulado;
+    const totalDebe  = a.lineas.reduce((s,l)=>s+(l.debe||0),0);
+    const totalHaber = a.lineas.reduce((s,l)=>s+(l.haber||0),0);
+    const balanceado = Math.abs(totalDebe-totalHaber) < 0.01;
+    return `
+    <div class="card" style="margin-bottom:12px;${isAnulado?'opacity:0.5;':''}border-left:3px solid ${isAnulado?'var(--red)':'var(--accent)'};padding:0;">
+      <!-- Header de la minuta -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-size:11px;color:var(--text3);font-family:monospace;">${a.id.substring(0,16)}…</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">${a.descripcion}</div>
+          ${isAnulado ? '<span class="badge badge-red">ANULADO</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--text3);">${fmtDate(a.fecha)}</span>
+          <span class="badge badge-gray" style="font-size:10px;">${a.origen||'Minuta'}</span>
+          ${!isAnulado ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="abrirEditarMinuta('${a.id}')">✏ Editar</button>` : ''}
+        </div>
+      </div>
+      <!-- Líneas del asiento -->
+      <div style="padding:12px 18px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:10px;color:var(--text3);text-align:left;padding:4px 0;font-weight:500;text-transform:uppercase;letter-spacing:1px;">Cuenta</th>
+              <th style="font-size:10px;color:var(--text3);text-align:right;padding:4px 0;font-weight:500;text-transform:uppercase;letter-spacing:1px;">Debe</th>
+              <th style="font-size:10px;color:var(--text3);text-align:right;padding:4px 0;font-weight:500;text-transform:uppercase;letter-spacing:1px;">Haber</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${a.lineas.map(l => `
+            <tr style="border-top:1px solid var(--border);">
+              <td style="padding:6px 0;font-size:13px;">
+                <span style="font-family:monospace;font-size:11px;color:var(--text3);margin-right:8px;">${l.cuenta}</span>
+                ${l.nombre}
+              </td>
+              <td style="text-align:right;padding:6px 0;font-weight:${l.debe>0?'700':'400'};color:${l.debe>0?'var(--red)':'var(--text3)'};">
+                ${l.debe>0?fmt(l.debe):'—'}
+              </td>
+              <td style="text-align:right;padding:6px 0;font-weight:${l.haber>0?'700':'400'};color:${l.haber>0?'var(--green)':'var(--text3)'};">
+                ${l.haber>0?fmt(l.haber):'—'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border);">
+              <td style="padding:8px 0;font-size:12px;font-weight:600;color:var(--text3);">TOTALES</td>
+              <td style="text-align:right;padding:8px 0;font-weight:700;color:var(--red);">${fmt(totalDebe)}</td>
+              <td style="text-align:right;padding:8px 0;font-weight:700;color:var(--green);">${fmt(totalHaber)}</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align:right;padding:4px 0;">
+                <span style="font-size:11px;font-weight:700;color:${balanceado?'var(--green)':'var(--red)'};">
+                  ${balanceado?'✓ Balanceado':'⚠ Desbalanceado'}
+                </span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirEditarMinuta(asientoId) {
+  const a = DB.asientos.find(x => x.id === asientoId);
+  if (!a || a.anulado) return;
+  document.getElementById('em-id').value    = a.id;
+  document.getElementById('em-fecha').value = a.fecha;
+  document.getElementById('em-desc').value  = a.descripcion;
+  // Cargar líneas
+  const cont = document.getElementById('em-lineas');
+  cont.innerHTML = `<div class="form-row r3" style="font-size:11px;color:var(--text3);padding:0 2px;margin-bottom:4px;">
+    <span>CUENTA</span>
+    <span style="text-align:right;padding-right:8px;">DEBE ($)</span>
+    <span style="text-align:right;padding-right:8px;">HABER ($)</span>
+  </div>`;
+  a.lineas.forEach(l => {
+    const div = document.createElement('div');
+    div.className = 'form-row r3 em-linea';
+    div.style.marginBottom = '6px';
+    div.style.alignItems = 'center';
+    div.innerHTML = `
+      <select style="font-size:12px;" onchange="calcularBalanceEM()">
+        ${DB.planCuentas.map(p=>`<option value="${p.id}" ${p.id===l.cuenta?'selected':''}>${p.id} · ${p.nombre}</option>`).join('')}
+      </select>
+      <div style="position:relative;">
+        <input type="number" value="${l.debe||''}" placeholder="0" min="0"
+          style="font-size:13px;font-weight:600;text-align:right;padding-right:8px;color:var(--red);"
+          oninput="calcularBalanceEM()">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" value="${l.haber||''}" placeholder="0" min="0"
+          style="font-size:13px;font-weight:600;text-align:right;padding-right:8px;color:var(--green);flex:1;"
+          oninput="calcularBalanceEM()">
+        <button onclick="eliminarLineaEM(this)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 2px;" title="Eliminar">×</button>
+      </div>`;
+    cont.appendChild(div);
+  });
+  calcularBalanceEM();
+  openModal('modal-editar-minuta');
+}
+
+function addLineaEditarMinuta() {
+  const cont = document.getElementById('em-lineas');
+  const div = document.createElement('div');
+  div.className = 'form-row r3 em-linea';
+  div.style.marginBottom = '6px';
+  div.style.alignItems = 'center';
+  div.innerHTML = `
+    <select style="font-size:12px;" onchange="calcularBalanceEM()">
+      ${DB.planCuentas.map(p=>`<option value="${p.id}">${p.id} · ${p.nombre}</option>`).join('')}
+    </select>
+    <div>
+      <input type="number" placeholder="0" min="0"
+        style="font-size:13px;font-weight:600;text-align:right;padding-right:8px;color:var(--red);"
+        oninput="calcularBalanceEM()">
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="number" placeholder="0" min="0"
+        style="font-size:13px;font-weight:600;text-align:right;padding-right:8px;color:var(--green);flex:1;"
+        oninput="calcularBalanceEM()">
+      <button onclick="eliminarLineaEM(this)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 2px;">×</button>
+    </div>`;
+  cont.appendChild(div);
+  calcularBalanceEM();
+}
+
+function eliminarLineaEM(btn) {
+  btn.closest('.em-linea').remove();
+  calcularBalanceEM();
+}
+
+function calcularBalanceEM() {
+  let totalDebe=0, totalHaber=0;
+  document.querySelectorAll('#em-lineas .em-linea').forEach(row => {
+    const inps = row.querySelectorAll('input[type="number"]');
+    totalDebe  += parseFloat(inps[0]?.value)||0;
+    totalHaber += parseFloat(inps[1]?.value)||0;
+  });
+  const elD = document.getElementById('em-total-debe');
+  const elH = document.getElementById('em-total-haber');
+  const elS = document.getElementById('em-balance-status');
+  const elL = document.getElementById('em-balance-label');
+  const btn = document.getElementById('btn-guardar-minuta-edit');
+  if (elD) elD.textContent = fmt(totalDebe);
+  if (elH) elH.textContent = fmt(totalHaber);
+  const diff = Math.abs(totalDebe - totalHaber);
+  const ok = diff < 0.01 && totalDebe > 0;
+  if (totalDebe===0 && totalHaber===0) {
+    if (elS) { elS.style.borderColor='var(--border)'; elS.style.background='var(--bg4)'; }
+    if (elL) { elL.textContent='—'; elL.style.color='var(--text3)'; }
+    if (btn) { btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; }
+  } else if (ok) {
+    if (elS) { elS.style.borderColor='var(--green)'; elS.style.background='var(--green-dim)'; }
+    if (elL) { elL.textContent='✓ Balanceado'; elL.style.color='var(--green)'; }
+    if (btn) { btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
+  } else {
+    const dif = totalDebe>totalHaber?`Debe +${fmt(diff)}`:`Haber +${fmt(diff)}`;
+    if (elS) { elS.style.borderColor='var(--red)'; elS.style.background='var(--red-dim)'; }
+    if (elL) { elL.textContent=`⚠ ${dif}`; elL.style.color='var(--red)'; }
+    if (btn) { btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; }
+  }
+}
+
+function guardarEdicionMinuta() {
+  const id    = document.getElementById('em-id').value;
+  const fecha = document.getElementById('em-fecha').value;
+  const desc  = document.getElementById('em-desc').value.trim();
+  if (!fecha || !desc) { mostrarToast('Completá fecha y descripción.','amber'); return; }
+  const rows = document.querySelectorAll('#em-lineas .em-linea');
+  const lineas=[]; let td=0,th=0;
+  rows.forEach(row => {
+    const sel  = row.querySelector('select');
+    const inps = row.querySelectorAll('input[type="number"]');
+    const cuenta = sel?.value;
+    const debe   = parseFloat(inps[0]?.value)||0;
+    const haber  = parseFloat(inps[1]?.value)||0;
+    if (debe||haber) {
+      const pc = DB.planCuentas.find(p=>p.id===cuenta);
+      lineas.push({cuenta, nombre:pc?.nombre||cuenta, debe, haber});
+      td+=debe; th+=haber;
+    }
+  });
+  if (!lineas.length) { mostrarToast('Agregá al menos una línea.','amber'); return; }
+  if (Math.abs(td-th)>=0.01) { mostrarToast('El asiento está desbalanceado.','amber'); return; }
+  const idx = DB.asientos.findIndex(x=>x.id===id);
+  if (idx===-1) return;
+  DB.asientos[idx] = { ...DB.asientos[idx], fecha, descripcion:desc, lineas };
+  saveDB(true);
+  closeModal('modal-editar-minuta');
+  renderMinutas();
+  renderLibroDiario();
+  renderBalance();
+  mostrarToast('✅ Minuta actualizada: ' + desc, 'green');
+}
+
+function confirmarAnularMinuta() {
+  const id = document.getElementById('em-id').value;
+  const a  = DB.asientos.find(x=>x.id===id);
+  if (!a) return;
+  document.getElementById('confirm-minuta-desc').textContent = a.descripcion;
+  document.getElementById('btn-confirm-anular-minuta').onclick = () => {
+    // Generar contraasiento
+    const contraId = uid('ASI');
+    registrarAsientoContable({
+      id: contraId, fecha: today(),
+      descripcion: 'CONTRAASIENTO · Anulación · ' + a.descripcion,
+      origen: 'Anulación', origenId: a.id,
+      esContraasiento: true,
+      lineas: a.lineas.map(l=>({cuenta:l.cuenta, nombre:l.nombre, debe:l.haber, haber:l.debe}))
+    });
+    // Marcar original como anulado
+    const idx = DB.asientos.findIndex(x=>x.id===id);
+    if (idx!==-1) { DB.asientos[idx].anulado=true; DB.asientos[idx].fechaAnulacion=today(); }
+    saveDB(true);
+    closeModal('modal-confirm-anular-minuta');
+    closeModal('modal-editar-minuta');
+    renderMinutas();
+    renderLibroDiario();
+    renderBalance();
+    mostrarToast('Minuta anulada con contraasiento automático.','amber');
+  };
+  openModal('modal-confirm-anular-minuta');
 }
 
 // ============================================================

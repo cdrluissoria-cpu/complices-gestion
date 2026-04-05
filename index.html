@@ -141,6 +141,8 @@
   .card-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
   .card-accent { border-left: 3px solid var(--accent); }
   .card-green { border-left: 3px solid var(--green); }
+  .card-orange { border-left: 3px solid var(--orange); }
+  .card-orange { border-left: 3px solid var(--orange); }
   .card-red { border-left: 3px solid var(--red); }
   .card-blue { border-left: 3px solid var(--blue); }
 
@@ -1103,11 +1105,16 @@
         </div>
         <button class="btn btn-primary" onclick="openModal('modal-gasto')">+ Registrar Gasto</button>
       </div>
-      <div class="grid g3" style="margin-bottom:20px;">
+      <div class="grid g4" style="margin-bottom:20px;">
         <div class="card card-red">
           <div class="card-title">Costos Variables</div>
           <div class="card-value" id="cv-total">$0</div>
-          <div class="card-sub">Por invitado / por evento</div>
+          <div class="card-sub">Varían con el volumen</div>
+        </div>
+        <div class="card card-orange">
+          <div class="card-title">Costos Semi Variables</div>
+          <div class="card-value" id="csv-total">$0</div>
+          <div class="card-sub">Parte fija + parte variable</div>
         </div>
         <div class="card">
           <div class="card-title">Costos Fijos Evento</div>
@@ -1780,6 +1787,7 @@
           <label>Clasificación <span class="required">*</span></label>
           <select id="gasto-clasif" onchange="updateGastoCuenta()">
             <option value="Variable">Costo variable</option>
+            <option value="Semi Variable">Costo semi variable</option>
             <option value="Fijo evento">Costo fijo del evento</option>
             <option value="Estructura">Costo fijo de estructura</option>
           </select>
@@ -1904,6 +1912,7 @@
           <select id="cuentac-clasif">
             <option value="">— No aplica —</option>
             <option value="Variable">Costo variable</option>
+            <option value="Semi Variable">Costo semi variable</option>
             <option value="Fijo evento">Costo fijo del evento</option>
             <option value="Estructura">Costo fijo de estructura</option>
           </select>
@@ -1968,11 +1977,11 @@ const DB = {
   eventos: [{"clienteId":"CLI_1775283631101_j4wh6","fechaContratacion":"2025-12-20","fechaEvento":"2026-04-03","tipo":"Casamiento","horaInicio":"22:00","horaFin":"05:30","invitados":123,"precioPP":41341,"total":5085000,"sena":400000,"lineas":[{"desc":"Personas","cant":120,"precio":41500,"sub":4980000},{"desc":"Personas","cant":3,"precio":35000,"sub":105000}],"estado":"Ejecutado","salon":"COMPLICES TU LUGAR","obs":"","id":"EVT_1775284232741_cmwsc","creado":"2026-04-04"}],
   movimientos: [{"id":"MOV_1775284232742_e53ae","fecha":"2026-04-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Seña · Casamiento · Carrizo Paula","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":400000,"medio":"Efectivo","obs":"Registrado automáticamente al crear evento","asientoId":"ASI_1775284232742_cden4"},{"id":"MOV_1775284575757_dwtak","fecha":"2026-03-30","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":1650000,"medio":"Transferencia","obs":"","asientoId":"ASI_1775284575757_qogzk"},{"id":"MOV_1775286223454_6wdi5","fecha":"2026-03-04","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c3","importe":2500000,"medio":"MercadoPago","obs":"","asientoId":"ASI_1775286223454_5s7y9"},{"id":"MOV_1775286794368_kik79","fecha":"2026-04-02","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":27000,"medio":"Efectivo","obs":"","asientoId":"ASI_1775286794368_s1k7s"},{"id":"MOV_1775287093437_sc4d1","fecha":"2026-04-02","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Pago a cuenta","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c2","importe":127000,"medio":"Transferencia","obs":"","asientoId":"ASI_1775287093437_8ts9h"},{"id":"MOV_1775287938469_udnlo","fecha":"2026-04-03","tipo":"Cobro","subtipo":"Cobro-Cliente","concepto":"Cancela Evento","eventoId":"EVT_1775284232741_cmwsc","cuentaId":"c1","importe":381000,"medio":"Efectivo","obs":"","asientoId":"ASI_1775287938469_pog45"}],
   cuentas: [{"id":"c1","nombre":"Caja efectivo","saldo":2458000,"tipo":"Caja"},{"id":"c2","nombre":"Cuenta banco","saldo":127000,"tipo":"Banco"},{"id":"c3","nombre":"MercadoPago","saldo":2500000,"tipo":"Virtual"}],
-  costos: [],
-  asientos: [{"id":"ASI_1775284232742_cden4","fecha":"2026-04-04","descripcion":"Seña recibida · Casamiento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284232742_e53ae","lineas":[{"cuenta":"1000","nombre":"Caja","debe":400000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":400000}]},{"id":"ASI_1775284575757_qogzk","fecha":"2026-03-30","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284575757_dwtak","lineas":[{"cuenta":"1000","nombre":"Caja","debe":1650000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":1650000}]},{"id":"ASI_1775286223454_5s7y9","fecha":"2026-03-04","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286223454_6wdi5","lineas":[{"cuenta":"1020","nombre":"MercadoPago","debe":2500000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":2500000}]},{"id":"ASI_1775286794368_s1k7s","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286794368_kik79","lineas":[{"cuenta":"1000","nombre":"Caja efectivo","debe":27000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":27000}]},{"id":"ASI_1775287093437_8ts9h","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775287093437_sc4d1","lineas":[{"cuenta":"1010","nombre":"Cuenta banco","debe":127000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":127000}]},{"id":"ASI_1775287938469_pog45","fecha":"2026-04-03","descripcion":"Cobro cliente · Cancela Evento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775287938469_udnlo","lineas":[{"cuenta":"1000","nombre":"Caja efectivo","debe":381000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":381000}]},{"id":"ASI_1775288006181_i0nyi","fecha":"2026-04-04","descripcion":"Ejecución evento · Casamiento · Carrizo Paula · Devengado","origen":"Eventos","origenId":"EVT_1775284232741_cmwsc","lineas":[{"cuenta":"2000","nombre":"Anticipos de clientes","debe":5085000,"haber":0},{"cuenta":"4000","nombre":"Ingresos por eventos","debe":0,"haber":5085000}]}],
+  costos: [{"concepto":"Pago a Barrozo","estado":"Pagado","creado":"2026-04-04","fecha":"2026-04-03","asientoId":"ASI_1775289285959_pyqwi","id":"GTO_1775289285959_0lmv7","clasif":"Variable","importe":1194775,"eventoId":"EVT_1775284232741_cmwsc","ctaContableId":"5000"},{"creado":"2026-04-04","estado":"Pagado","fecha":"2026-04-03","concepto":"Pago a Barrozo reintegro de mercaderia","importe":976000,"eventoId":"EVT_1775284232741_cmwsc","clasif":"Variable","id":"GTO_1775289431882_xsqrn","ctaContableId":"5001","asientoId":"ASI_1775289431882_cbikv"},{"estado":"Pagado","creado":"2026-04-04","fecha":"2026-04-03","concepto":"Compra de Servilletas eventos","id":"GTO_1775289580331_xgmbh","clasif":"Variable","eventoId":"EVT_1775284232741_cmwsc","importe":15000,"ctaContableId":"5001","asientoId":"ASI_1775289580331_oybkl"}],
+  asientos: [{"id":"ASI_1775284232742_cden4","fecha":"2026-04-04","descripcion":"Seña recibida · Casamiento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284232742_e53ae","lineas":[{"cuenta":"1000","nombre":"Caja","debe":400000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":400000}]},{"id":"ASI_1775284575757_qogzk","fecha":"2026-03-30","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775284575757_dwtak","lineas":[{"cuenta":"1000","nombre":"Caja","debe":1650000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":1650000}]},{"id":"ASI_1775286223454_5s7y9","fecha":"2026-03-04","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286223454_6wdi5","lineas":[{"cuenta":"1020","nombre":"MercadoPago","debe":2500000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":2500000}]},{"id":"ASI_1775286794368_s1k7s","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775286794368_kik79","lineas":[{"cuenta":"1000","nombre":"Caja efectivo","debe":27000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":27000}]},{"id":"ASI_1775287093437_8ts9h","fecha":"2026-04-02","descripcion":"Cobro cliente · Pago a cuenta · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775287093437_sc4d1","lineas":[{"cuenta":"1010","nombre":"Cuenta banco","debe":127000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":127000}]},{"id":"ASI_1775287938469_pog45","fecha":"2026-04-03","descripcion":"Cobro cliente · Cancela Evento · Carrizo Paula","origen":"Tesorería","origenId":"MOV_1775287938469_udnlo","lineas":[{"cuenta":"1000","nombre":"Caja efectivo","debe":381000,"haber":0},{"cuenta":"2000","nombre":"Anticipos de clientes","debe":0,"haber":381000}]},{"id":"ASI_1775288006181_i0nyi","fecha":"2026-04-04","descripcion":"Ejecución evento · Casamiento · Carrizo Paula · Devengado","origen":"Eventos","origenId":"EVT_1775284232741_cmwsc","lineas":[{"cuenta":"2000","nombre":"Anticipos de clientes","debe":5085000,"haber":0},{"cuenta":"4000","nombre":"Ingresos por eventos","debe":0,"haber":5085000}]},{"id":"ASI_1775289285959_pyqwi","fecha":"2026-04-03","descripcion":"Pago a Barrozo · Carrizo Paula","origen":"Costos","origenId":"GTO_1775289285959_0lmv7","lineas":[{"cuenta":"5000","nombre":"Costo V. catering M.O.","debe":1194775,"haber":0},{"cuenta":"2010","nombre":"Proveedores a pagar","debe":0,"haber":1194775}]},{"id":"ASI_1775289431882_cbikv","fecha":"2026-04-03","descripcion":"Pago a Barrozo reintegro de mercaderia · Carrizo Paula","origen":"Costos","origenId":"GTO_1775289431882_xsqrn","lineas":[{"cuenta":"5001","nombre":"Costo V. catering mercaderia","debe":976000,"haber":0},{"cuenta":"2010","nombre":"Proveedores a pagar","debe":0,"haber":976000}]},{"id":"ASI_1775289580331_oybkl","fecha":"2026-04-03","descripcion":"Compra de Servilletas eventos · Carrizo Paula","origen":"Costos","origenId":"GTO_1775289580331_xgmbh","lineas":[{"cuenta":"5001","nombre":"Costo V. catering mercaderia","debe":15000,"haber":0},{"cuenta":"2010","nombre":"Proveedores a pagar","debe":0,"haber":15000}]}],
   config: {"precioPP":0,"senaPct":30,"nombre":"Cómplices · Tu Lugar"},
   nextId: {"c":1,"e":1,"m":1,"a":1,"g":1},
-  planCuentas: [{"nombre":"Caja","id":"1000","grupo":"ACTIVO","subgrupo":"Disponibilidades","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Bancos","id":"1010","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Billeteras virtuales","id":"1020","uso":"contabilidad"},{"nombre":"Cuentas a cobrar clientes","id":"1100","grupo":"ACTIVO","subgrupo":"Créditos","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Créditos","nombre":"Otros créditos","id":"1110","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Anticipos de clientes","id":"2000","uso":"contabilidad"},{"subgrupo":"Pasivo corriente","grupo":"PASIVO","id":"2010","nombre":"Proveedores a pagar","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Otras deudas","id":"2020","uso":"contabilidad"},{"grupo":"INGRESOS","subgrupo":"Ingresos operativos","nombre":"Ingresos por eventos","id":"4000","uso":"cobros"},{"id":"4010","nombre":"Ingresos por penalidades / cancelaciones","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"id":"4020","nombre":"Ingresos varios","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"id":"5000","nombre":"Costo V. catering M.O.","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5001","nombre":"Costo V. catering mercaderia","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"clasif":"Fijo evento","nombre":"Costos fijos del evento","id":"5010","grupo":"COSTOS","subgrupo":"Costos fijos evento","uso":"pagos"},{"id":"5020","nombre":"Costos fijos de estructura","clasif":"Estructura","subgrupo":"Estructura","grupo":"COSTOS","uso":"pagos"},{"nombre":"Gastos operativos","id":"5030","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"subgrupo":"Administrativos","grupo":"GASTOS","id":"5040","nombre":"Gastos administrativos","uso":"pagos"},{"id":"5050","nombre":"Sueldos y cargas sociales","grupo":"GASTOS","subgrupo":"Personal","clasif":"Estructura","uso":"pagos"},{"id":"5060","nombre":"Alquiler del local","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5070","nombre":"Servicios (luz, agua, gas)","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5080","nombre":"Publicidad y marketing","grupo":"GASTOS","subgrupo":"Comerciales","uso":"pagos"},{"id":"5090","nombre":"Mantenimiento y reparaciones","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"id":"5100","nombre":"DJ / Música","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5110","nombre":"Catering / Comidas","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5120","nombre":"Fotografía / Video","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5130","nombre":"Decoración","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5140","nombre":"Seguridad","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5150","nombre":"Limpieza post-evento","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5160","nombre":"Personal eventual","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5900","nombre":"Gastos financieros","grupo":"GASTOS","subgrupo":"Financieros","uso":"pagos"}]
+  planCuentas: [{"nombre":"Caja","id":"1000","grupo":"ACTIVO","subgrupo":"Disponibilidades","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Bancos","id":"1010","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Disponibilidades","nombre":"Billeteras virtuales","id":"1020","uso":"contabilidad"},{"nombre":"Cuentas a cobrar clientes","id":"1100","grupo":"ACTIVO","subgrupo":"Créditos","uso":"contabilidad"},{"grupo":"ACTIVO","subgrupo":"Créditos","nombre":"Otros créditos","id":"1110","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Anticipos de clientes","id":"2000","uso":"contabilidad"},{"subgrupo":"Pasivo corriente","grupo":"PASIVO","id":"2010","nombre":"Proveedores a pagar","uso":"contabilidad"},{"grupo":"PASIVO","subgrupo":"Pasivo corriente","nombre":"Otras deudas","id":"2020","uso":"contabilidad"},{"grupo":"INGRESOS","subgrupo":"Ingresos operativos","nombre":"Ingresos por eventos","id":"4000","uso":"cobros"},{"id":"4010","nombre":"Ingresos por penalidades / cancelaciones","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"id":"4020","nombre":"Ingresos varios","subgrupo":"Ingresos operativos","grupo":"INGRESOS","uso":"cobros"},{"id":"5000","nombre":"Costo V. catering M.O.","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5001","nombre":"Costo V. catering mercaderia","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5005","nombre":"Costos semi variables","grupo":"COSTOS","subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos"},{"id":"5006","nombre":"Costo SV. personal eventual","grupo":"COSTOS","subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos"},{"id":"5007","nombre":"Costo SV. energía / combustible","grupo":"COSTOS","subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos"},{"id":"5008","nombre":"Costo SV. mantenimiento operativo","grupo":"COSTOS","subgrupo":"Costos semi variables","clasif":"Semi Variable","uso":"pagos"},{"clasif":"Fijo evento","nombre":"Costos fijos del evento","id":"5010","grupo":"COSTOS","subgrupo":"Costos fijos evento","uso":"pagos"},{"id":"5100","nombre":"DJ / Música","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5110","nombre":"Catering / Comidas","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5120","nombre":"Fotografía / Video","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5130","nombre":"Decoración","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5140","nombre":"Seguridad","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5150","nombre":"Limpieza post-evento","grupo":"COSTOS","subgrupo":"Costos fijos evento","clasif":"Fijo evento","uso":"pagos"},{"id":"5160","nombre":"Personal eventual","grupo":"COSTOS","subgrupo":"Costos variables","clasif":"Variable","uso":"pagos"},{"id":"5020","nombre":"Costos fijos de estructura","clasif":"Estructura","subgrupo":"Estructura","grupo":"COSTOS","uso":"pagos"},{"nombre":"Gastos operativos","id":"5030","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"subgrupo":"Administrativos","grupo":"GASTOS","id":"5040","nombre":"Gastos administrativos","uso":"pagos"},{"id":"5050","nombre":"Sueldos y cargas sociales","grupo":"GASTOS","subgrupo":"Personal","clasif":"Estructura","uso":"pagos"},{"id":"5060","nombre":"Alquiler del local","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5070","nombre":"Servicios (luz, agua, gas)","grupo":"GASTOS","subgrupo":"Estructura","clasif":"Estructura","uso":"pagos"},{"id":"5080","nombre":"Publicidad y marketing","grupo":"GASTOS","subgrupo":"Comerciales","uso":"pagos"},{"id":"5090","nombre":"Mantenimiento y reparaciones","grupo":"GASTOS","subgrupo":"Operativos","uso":"pagos"},{"id":"5900","nombre":"Gastos financieros","grupo":"GASTOS","subgrupo":"Financieros","uso":"pagos"}]
 };
 
 // ============================================================
@@ -3423,7 +3432,7 @@ function updateGastoCuenta() {
   const sel = document.getElementById('gasto-cuenta-contable');
   if (!sel) return;
   // Filtrar cuentas según clasificación elegida
-  const mapClasif = { 'Variable': 'Variable', 'Fijo evento': 'Fijo evento', 'Estructura': 'Estructura' };
+  const mapClasif = { 'Variable': 'Variable', 'Semi Variable': 'Semi Variable', 'Fijo evento': 'Fijo evento', 'Estructura': 'Estructura' };
   const clasificacionTarget = mapClasif[clasif];
   const cuentasGasto = DB.planCuentas.filter(p =>
     (p.grupo === 'COSTOS' || p.grupo === 'GASTOS') &&
@@ -3480,12 +3489,14 @@ function guardarGasto() {
 }
 
 function renderCostos() {
-  const cv = DB.costos.filter(g => g.clasif==='Variable').reduce((s,g)=>s+g.importe,0);
+  const cv  = DB.costos.filter(g => g.clasif==='Variable').reduce((s,g)=>s+g.importe,0);
+  const csv = DB.costos.filter(g => g.clasif==='Semi Variable').reduce((s,g)=>s+g.importe,0);
   const cfe = DB.costos.filter(g => g.clasif==='Fijo evento').reduce((s,g)=>s+g.importe,0);
-  const ce = DB.costos.filter(g => g.clasif==='Estructura').reduce((s,g)=>s+g.importe,0);
-  document.getElementById('cv-total').textContent = fmt(cv);
+  const ce  = DB.costos.filter(g => g.clasif==='Estructura').reduce((s,g)=>s+g.importe,0);
+  document.getElementById('cv-total').textContent  = fmt(cv);
+  const csvEl = document.getElementById('csv-total'); if(csvEl) csvEl.textContent = fmt(csv);
   document.getElementById('cfe-total').textContent = fmt(cfe);
-  document.getElementById('ce-total').textContent = fmt(ce);
+  document.getElementById('ce-total').textContent  = fmt(ce);
   const tbody = document.getElementById('tabla-costos');
   if (!DB.costos.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin registros</td></tr>'; return; }
   const sorted = [...DB.costos].sort((a,b)=>b.fecha>a.fecha?1:-1);
@@ -4310,12 +4321,13 @@ function renderEstadoResultados() {
   }
 
   const ingresos = ingresosEnPeriodo();
-  const cv = costosPorClasif('Variable') || costosCuentaEnPeriodo('5000');
+  const cv  = costosPorClasif('Variable') || costosCuentaEnPeriodo('5000');
+  const csv = costosPorClasif('Semi Variable') || costosCuentaEnPeriodo('5005');
   const cfe = costosPorClasif('Fijo evento') || costosCuentaEnPeriodo('5010');
   const ce = costosPorClasif('Estructura') || costosCuentaEnPeriodo('5020');
   const gastos = costosCuentaEnPeriodo('503') + costosCuentaEnPeriodo('504') + costosCuentaEnPeriodo('505') + costosCuentaEnPeriodo('506') + costosCuentaEnPeriodo('507') + costosCuentaEnPeriodo('508') + costosCuentaEnPeriodo('509');
-  const totalCostos = cv + cfe + ce + gastos;
-  const margenContrib = ingresos - cv;
+  const totalCostos = cv + csv + cfe + ce + gastos;
+  const margenContrib = ingresos - cv - csv;
   const resultBruto = ingresos - cv - cfe;
   const resultOp = ingresos - totalCostos;
   const pctMC = ingresos > 0 ? (margenContrib/ingresos*100).toFixed(1) : 0;
@@ -4340,6 +4352,8 @@ function renderEstadoResultados() {
   if (erEl) erEl.innerHTML =
     erRow('Ingresos por eventos', ingresos, 0, false, 'pos') +
     erRow('(-) Costos variables', cv, 1, false, 'neg') +
+    (csv>0 ? erRow('(-) Costos semi variables', csv, 1, false, 'neg') : '') +
+    (csv>0 ? erRow('(-) Costos semi variables', csv, 1, false, 'neg') : '') +
     erRow('= Margen de contribución', margenContrib, 0, true, margenContrib>=0?'accent':'neg', true) +
     erRow('(-) Costos fijos del evento', cfe, 1, false, 'neg') +
     erRow('= Resultado bruto', resultBruto, 0, true, resultBruto>=0?'pos':'neg', true) +
@@ -4364,7 +4378,8 @@ function renderEstadoResultados() {
   if (costEl && totalCostos > 0) {
     costEl.innerHTML = svgDonut([
       { label: 'Costos variables', value: cv, color: '#e05555' },
-      { label: 'CF del evento', value: cfe, color: '#e8965a' },
+      { label: 'Semi variables', value: csv, color: '#e8965a' },
+      { label: 'CF del evento', value: cfe, color: '#c9a96e' },
       { label: 'Estructura', value: ce, color: '#5b9bd5' },
       { label: 'Gastos', value: gastos, color: '#9b7fd4' },
     ].filter(s=>s.value>0), { size: 130, strokeW: 26 });

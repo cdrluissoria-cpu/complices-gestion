@@ -1259,6 +1259,21 @@
         </div>
       </div>
       <!-- Por evento -->
+      <!-- Resultado por mes -->
+      <div class="card" style="padding:0;margin-bottom:16px;">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;">Resultado por mes</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th><th>Ingresos</th><th>Costos Var.</th><th>Costos SV.</th><th>CF Evento</th><th>G. Estructura</th><th>Resultado</th><th>Margen %</th>
+              </tr>
+            </thead>
+            <tbody id="er-por-mes"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Resultado por evento -->
       <div class="card" style="padding:0;">
         <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;">Resultado por evento</div>
         <div class="table-wrap">
@@ -3710,27 +3725,90 @@ function updateSubgrupoOptions() {
 function renderBalance() {
   const el = document.getElementById('balance-card');
   if (!el) return;
-  // Calcular sumas por cuenta
+  // Calcular sumas por cuenta — TODOS los asientos (anulados + contraasientos se cancelan)
   const sumas = {};
   DB.asientos.forEach(a => {
-    // TODOS los asientos impactan el balance: anulados Y contraasientos
-    // El par asiento-anulado + contraasiento se cancela → saldo neto $0
-    // Cuentas con saldo $0 no se muestran → el par desaparece solo del listado
     a.lineas.forEach(l => {
       if (!sumas[l.cuenta]) sumas[l.cuenta] = { debe: 0, haber: 0 };
       sumas[l.cuenta].debe  += l.debe||0;
       sumas[l.cuenta].haber += l.haber||0;
     });
   });
+
+  // Acumuladores de totales
+  let totalDebe = 0, totalHaber = 0, totalSaldoD = 0, totalSaldoH = 0;
+
   const rows = DB.planCuentas.map(pc => {
     const s = sumas[pc.id] || { debe: 0, haber: 0 };
-    const saldo = s.debe - s.haber;
     if (!s.debe && !s.haber) return '';
-    return `<tr><td style="font-family:monospace;">${pc.id}</td><td style="color:var(--text);">${pc.nombre}</td><td class="${s.debe>0?'num-neg':''}">${s.debe>0?fmt(s.debe):'—'}</td><td class="${s.haber>0?'num-pos':''}">${s.haber>0?fmt(s.haber):'—'}</td><td style="font-weight:600;">${fmt(Math.abs(saldo))} ${saldo>0?'D':'H'}</td></tr>`;
+    const saldo = s.debe - s.haber;
+    totalDebe   += s.debe;
+    totalHaber  += s.haber;
+    if (saldo > 0) totalSaldoD += saldo;
+    else           totalSaldoH += Math.abs(saldo);
+
+    // Color de fila por grupo
+    const grupoBg = pc.grupo==='ACTIVO'?'':'';
+    const saldoColor = saldo === 0
+      ? 'color:var(--text3);'
+      : saldo > 0
+        ? 'color:var(--text);font-weight:700;'
+        : 'color:var(--text);font-weight:700;';
+    const saldoLabel = saldo === 0
+      ? '<span style="color:var(--text3);">$0</span>'
+      : saldo > 0
+        ? `<span style="color:var(--text);">${fmt(saldo)}</span> <span style="font-size:11px;color:var(--accent);font-weight:700;">D</span>`
+        : `<span style="color:var(--text);">${fmt(Math.abs(saldo))}</span> <span style="font-size:11px;color:var(--green);font-weight:700;">H</span>`;
+
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="font-family:monospace;font-size:12px;color:var(--text3);padding:8px 12px;">${pc.id}</td>
+      <td style="color:var(--text);padding:8px 4px;">${pc.nombre}</td>
+      <td style="text-align:right;padding:8px 16px;font-weight:${s.debe>0?'600':'400'};color:${s.debe>0?'var(--red)':'var(--text3)'};">${s.debe>0?fmt(s.debe):'—'}</td>
+      <td style="text-align:right;padding:8px 16px;font-weight:${s.haber>0?'600':'400'};color:${s.haber>0?'var(--green)':'var(--text3)'};">${s.haber>0?fmt(s.haber):'—'}</td>
+      <td style="text-align:right;padding:8px 12px;">${saldoLabel}</td>
+    </tr>`;
   }).filter(Boolean).join('');
+
+  // Verificar si el balance cuadra (D = H)
+  const diferencia = Math.abs(totalDebe - totalHaber);
+  const cuadra = diferencia < 1;
+  const saldoDiff = totalSaldoD - totalSaldoH;
+
+  const footerStyle = cuadra
+    ? 'background:var(--green-dim);border-top:2px solid var(--green);'
+    : 'background:var(--red-dim);border-top:2px solid var(--red);';
+  const checkIcon = cuadra ? '✓' : '⚠';
+  const checkColor = cuadra ? 'var(--green)' : 'var(--red)';
+  const checkMsg  = cuadra ? 'Balance cuadrado' : `Diferencia: ${fmt(diferencia)}`;
+
+  const footer = `
+    <tfoot>
+      <tr style="${footerStyle}">
+        <td colspan="2" style="padding:10px 12px;font-weight:700;font-size:13px;color:${checkColor};">
+          ${checkIcon} ${checkMsg}
+        </td>
+        <td style="text-align:right;padding:10px 16px;font-weight:700;font-size:14px;color:var(--red);">${fmt(totalDebe)}</td>
+        <td style="text-align:right;padding:10px 16px;font-weight:700;font-size:14px;color:var(--green);">${fmt(totalHaber)}</td>
+        <td style="text-align:right;padding:10px 12px;">
+          ${saldoDiff === 0
+            ? '<span style="font-weight:700;color:var(--text3);">$0</span>'
+            : `<span style="font-weight:700;color:var(--text);">${fmt(Math.abs(saldoDiff))}</span> <span style="font-size:11px;font-weight:700;color:${saldoDiff>0?'var(--accent)':'var(--green)'};">${saldoDiff>0?'D':'H'}</span>`}
+        </td>
+      </tr>
+    </tfoot>`;
+
   el.innerHTML = `<table style="width:100%;border-collapse:collapse;">
-    <thead><tr><th>Cód.</th><th>Cuenta</th><th>Debe</th><th>Haber</th><th>Saldo</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3);">Sin movimientos</td></tr>'}</tbody>
+    <thead>
+      <tr style="border-bottom:2px solid var(--border2);">
+        <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Cód.</th>
+        <th style="text-align:left;padding:10px 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Cuenta</th>
+        <th style="text-align:right;padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--red);">Σ Debe</th>
+        <th style="text-align:right;padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--green);">Σ Haber</th>
+        <th style="text-align:right;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Saldo</th>
+      </tr>
+    </thead>
+    <tbody>${rows || '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3);">Sin movimientos registrados</td></tr>'}</tbody>
+    ${rows ? footer : ''}
   </table>`;
 }
 
@@ -4803,21 +4881,47 @@ function renderEstadoResultados() {
   // KPIs
   const kpiEl = document.getElementById('er-kpis');
   if (kpiEl) kpiEl.innerHTML = `
-    <div class="card card-accent"><div class="card-title">Ingresos devengados</div><div class="card-value">${fmt(ingresos)}</div><div class="card-sub">${meses.length} meses</div></div>
-    <div class="card"><div class="card-title">Margen contribución</div><div class="card-value">${fmt(margenContrib)}</div><div class="card-sub" style="color:var(--accent);">${pctMC}% del ingreso</div></div>
-    <div class="card card-green"><div class="card-title">Resultado operativo</div><div class="card-value ${resultOp>=0?'num-pos':'num-neg'}">${fmt(resultOp)}</div><div class="card-sub">${ingresos>0?(resultOp/ingresos*100).toFixed(1)+'% margen':''}</div></div>
-    <div class="card card-red"><div class="card-title">Total costos</div><div class="card-value">${fmt(totalCostos)}</div><div class="card-sub">${ingresos>0?(totalCostos/ingresos*100).toFixed(1)+'% de ingresos':''}</div></div>`;
+    <div class="card card-accent">
+      <div class="card-title">Ingresos devengados</div>
+      <div class="card-value">${fmt(ingresos)}</div>
+      <div class="card-sub">${meses.length} ${meses.length===1?'mes':'meses'}</div>
+    </div>
+    <div class="card card-red">
+      <div class="card-title">Total costos</div>
+      <div class="card-value">${fmt(totalCostos)}</div>
+      <div class="card-sub">${ingresos>0?(totalCostos/ingresos*100).toFixed(1)+'% de ingresos':''}</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Margen contribución</div>
+      <div class="card-value" style="color:var(--accent);">${fmt(margenContrib)}</div>
+      <div class="card-sub" style="color:var(--accent);">${pctMC}% del ingreso</div>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">Resultado operativo</div>
+      <div class="card-value ${resultOp>=0?'num-pos':'num-neg'}">${fmt(resultOp)}</div>
+      <div class="card-sub">${ingresos>0?(resultOp/ingresos*100).toFixed(1)+'% margen':''}</div>
+    </div>`;
 
   // Tabla ER completo
   const erEl = document.getElementById('er-tabla');
   function erRow(label, valor, indent=0, bold=false, tipo='neutral', borderTop=false) {
     const color = tipo==='pos'?'var(--green)':tipo==='neg'?'var(--red)':tipo==='accent'?'var(--accent)':'var(--text)';
-    return `<div style="display:flex;justify-content:space-between;padding:${bold?'10':'7'}px ${indent*16}px 7px 0;${borderTop?'border-top:1px solid var(--border2);margin-top:4px;':''} border-bottom:1px solid var(--border);">
-      <span style="color:var(--text2);font-size:13px;${bold?'font-weight:700;color:var(--text);':''}">${label}</span>
-      <span style="font-size:13px;font-weight:${bold?'700':'500'};color:${color};">${fmt(valor)}</span>
+    // Calcular % sobre ingresos para cada línea
+    const pct = ingresos > 0 && valor > 0 ? (valor/ingresos*100).toFixed(1) : null;
+    const pctColor = tipo==='neg'?'var(--red)':tipo==='pos'?'var(--green)':tipo==='accent'?'var(--accent)':'var(--text3)';
+    return `<div style="display:grid;grid-template-columns:1fr 110px 60px;align-items:center;padding:${bold?'10':'7'}px 0;${borderTop?'border-top:2px solid var(--border2);margin-top:6px;':''} border-bottom:1px solid var(--border);">
+      <span style="color:var(--text2);font-size:13px;padding-left:${indent*14}px;${bold?'font-weight:700;color:var(--text);':''}">${label}</span>
+      <span style="font-size:13px;font-weight:${bold?'700':'500'};color:${color};text-align:right;">${fmt(valor)}</span>
+      <span style="font-size:11px;color:${pct?pctColor:'var(--border)'};text-align:right;padding-right:4px;">${pct?pct+'%':'—'}</span>
     </div>`;
   }
-  if (erEl) erEl.innerHTML =
+  // Header de columnas
+  const erHeader = `<div style="display:grid;grid-template-columns:1fr 110px 60px;padding:4px 0 8px;border-bottom:2px solid var(--border2);margin-bottom:4px;">
+    <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Concepto</span>
+    <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;text-align:right;">Importe</span>
+    <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;text-align:right;padding-right:4px;">% Ing.</span>
+  </div>`;
+  if (erEl) erEl.innerHTML = erHeader +
     erRow('Ingresos por eventos', ingresos, 0, false, 'pos') +
     erRow('(-) Costos variables', cv, 1, false, 'neg') +
     (csv>0 ? erRow('(-) Costos semi variables', csv, 1, false, 'neg') : '') +
@@ -4849,7 +4953,57 @@ function renderEstadoResultados() {
     ].filter(s=>s.value>0), { size: 130, strokeW: 26 });
   } else if (costEl) { costEl.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin costos registrados</div>'; }
 
-  // Por evento
+  // Por MES
+  const mesEl = document.getElementById('er-por-mes');
+  if (mesEl) {
+    const MESES_NOM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let totalIngM=0, totalCvM=0, totalCsvM=0, totalCfeM=0, totalCeM=0, totalResM=0;
+    const rows = meses.map(mk => {
+      const ingM = DB.asientos.filter(a=>!a.anulado&&getMesKey(a.fecha)===mk)
+        .flatMap(a=>a.lineas).filter(l=>l.cuenta.startsWith('4')).reduce((s,l)=>s+(l.haber||0),0);
+      const cvM  = DB.costos.filter(g=>getMesKey(g.fecha)===mk&&g.clasif==='Variable'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+      const csvM = DB.costos.filter(g=>getMesKey(g.fecha)===mk&&g.clasif==='Semi Variable'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+      const cfeM = DB.costos.filter(g=>getMesKey(g.fecha)===mk&&g.clasif==='Fijo evento'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+      const ceCl = DB.costos.filter(g=>getMesKey(g.fecha)===mk&&g.clasif==='Estructura'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+      const ceAs = ['502','503','504','505','506','507','508','509'].reduce((s,pref)=>
+        s + DB.asientos.filter(a=>!a.anulado&&getMesKey(a.fecha)===mk).flatMap(a=>a.lineas)
+        .filter(l=>l.cuenta.startsWith(pref)).reduce((ss,l)=>ss+(l.debe||0),0), 0);
+      const ceM  = ceCl + ceAs;
+      const resM = ingM - cvM - csvM - cfeM - ceM;
+      const hasData = ingM>0 || cvM>0 || csvM>0 || cfeM>0 || ceM>0;
+      if (!hasData) return '';
+      totalIngM+=ingM; totalCvM+=cvM; totalCsvM+=csvM; totalCfeM+=cfeM; totalCeM+=ceM; totalResM+=resM;
+      const [yy,mm] = mk.split('-');
+      const nomMes = MESES_NOM[parseInt(mm)-1] + ' ' + yy;
+      const margM = ingM>0?(resM/ingM*100).toFixed(1)+'%':'—';
+      return `<tr>
+        <td style="font-weight:600;color:var(--text);white-space:nowrap;">${nomMes}</td>
+        <td style="color:var(--green);font-weight:600;">${ingM>0?fmt(ingM):'—'}</td>
+        <td style="color:${cvM>0?'var(--red)':'var(--text3)'};">${cvM>0?fmt(cvM):'—'}</td>
+        <td style="color:${csvM>0?'var(--red)':'var(--text3)'};">${csvM>0?fmt(csvM):'—'}</td>
+        <td style="color:${cfeM>0?'var(--red)':'var(--text3)'};">${cfeM>0?fmt(cfeM):'—'}</td>
+        <td style="color:${ceM>0?'var(--red)':'var(--text3)'};">${ceM>0?fmt(ceM):'—'}</td>
+        <td style="font-weight:700;color:${resM>=0?'var(--green)':'var(--red)'};">${fmt(resM)}</td>
+        <td style="font-size:12px;font-weight:600;color:${resM>=0?'var(--green)':'var(--red)'};">${margM}</td>
+      </tr>`;
+    }).filter(Boolean);
+    const totalMarg = totalIngM>0?(totalResM/totalIngM*100).toFixed(1)+'%':'—';
+    mesEl.innerHTML = rows.length
+      ? rows.join('') + (rows.length>1?`
+        <tr style="border-top:2px solid var(--border2);background:var(--bg3);">
+          <td style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);">TOTAL</td>
+          <td style="font-weight:700;color:var(--green);">${fmt(totalIngM)}</td>
+          <td style="font-weight:700;color:var(--red);">${totalCvM>0?fmt(totalCvM):'—'}</td>
+          <td style="font-weight:700;color:var(--red);">${totalCsvM>0?fmt(totalCsvM):'—'}</td>
+          <td style="font-weight:700;color:var(--red);">${totalCfeM>0?fmt(totalCfeM):'—'}</td>
+          <td style="font-weight:700;color:var(--red);">${totalCeM>0?fmt(totalCeM):'—'}</td>
+          <td style="font-weight:700;color:${totalResM>=0?'var(--green)':'var(--red)'};">${fmt(totalResM)}</td>
+          <td style="font-weight:700;color:${totalResM>=0?'var(--green)':'var(--red)'};">${totalMarg}</td>
+        </tr>`:'')
+      : '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3);">Sin datos en el período seleccionado</td></tr>';
+  }
+
+  // Por EVENTO
   const evEl = document.getElementById('er-por-evento');
   if (evEl) {
     const evsPeriodo = DB.eventos.filter(e => {

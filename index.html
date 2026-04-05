@@ -353,6 +353,12 @@
   }
 
 
+
+  @media (max-width: 768px) {
+    #btn-gt-text { display: none; }
+    #btn-guardar-todo { padding: 6px 10px; }
+  }
+
   /* CC ROWS */
   .cc-row:hover td { background: var(--bg4) !important; }
   .cc-row { transition: background 0.1s; }
@@ -360,8 +366,11 @@
 
 
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  #btn-sync-now:hover { background: var(--bg3) !important; }
-  #btn-sync-now:active { transform: scale(0.95); }
+  #btn-guardar-todo:hover { background: var(--accent2) !important; transform: translateY(-1px); }
+  #btn-guardar-todo:active { transform: scale(0.96); }
+  #btn-guardar-todo:disabled { opacity: 0.6; cursor: not-allowed; }
+  #btn-guardar-todo.saving { background: var(--bg4) !important; color: var(--accent) !important; border: 1px solid var(--accent); }
+  #btn-guardar-todo.done { background: var(--green-dim) !important; color: var(--green) !important; border: 1px solid var(--green); }
 
   /* ANULADO */
   tr.anulado-row { opacity: 0.45; }
@@ -684,14 +693,20 @@
       </div>
     </div>
     <div class="topbar-right">
-      <button id="btn-sync-now" onclick="syncNow()" title="Sincronizar con Firebase ahora"
-        style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;">
+      <!-- Estado sync -->
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="syncNow()" title="Sincronizar con Firebase">
         <span id="sync-icon" style="font-size:13px;display:inline-block;">☁</span>
         <span id="sync-status" style="font-size:11px;color:var(--text3);">Local</span>
+      </div>
+      <!-- Botón GUARDAR TODO siempre visible -->
+      <button id="btn-guardar-todo" onclick="guardarTodoEnFirebase()" 
+        style="background:var(--accent);color:#1a1200;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;transition:all 0.15s;"
+        title="Guardar TODOS los datos en Firebase ahora">
+        <span id="btn-gt-icon">⬆</span>
+        <span id="btn-gt-text">Guardar en Firebase</span>
       </button>
-      <button id="btn-force-upload" onclick="forceUploadToFirebase()" title="Forzar subida de datos a Firebase"
-        style="display:none;background:var(--accent);color:#1a1200;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;">
-        ⬆ Subir datos
+      <button id="btn-force-upload" onclick="forceUploadToFirebase()" title="Forzar subida"
+        style="display:none;">
       </button>
       <span style="font-size:12px;color:var(--text3);" id="topbar-date"></span>
       <button class="btn btn-primary btn-sm" id="topbar-action" onclick="handleTopbarAction()">+ Nueva Fiesta</button>
@@ -2034,22 +2049,19 @@ function setSyncStatus(status, msg) {
   _syncStatus = status;
   const el = document.getElementById('sync-status');
   const icon = document.getElementById('sync-icon');
-  const btn = document.getElementById('btn-sync-now');
   const map = {
-    local:   { icon: '💾', text: 'Local',        color: 'var(--text3)',  border: 'var(--border)' },
-    syncing: { icon: '🔄', text: 'Guardando…',   color: 'var(--accent)', border: 'var(--accent)' },
-    ok:      { icon: '☁',  text: 'Sincronizado', color: 'var(--green)',  border: 'rgba(93,186,122,0.4)' },
-    error:   { icon: '⚠',  text: msg||'Error',   color: 'var(--red)',    border: 'rgba(224,85,85,0.4)' },
+    local:   { icon: '💾', text: 'Local',        color: 'var(--text3)' },
+    syncing: { icon: '🔄', text: 'Guardando…',   color: 'var(--accent)' },
+    ok:      { icon: '☁',  text: 'Sincronizado', color: 'var(--green)' },
+    error:   { icon: '⚠',  text: msg||'Error',   color: 'var(--red)' },
   };
   const s = map[status] || map.local;
   if (el) { el.textContent = s.text; el.style.color = s.color; }
-  if (icon) { icon.textContent = s.icon; }
-  if (btn) { btn.style.borderColor = s.border; }
-  // Animar icono al sincronizar
-  if (status === 'syncing' && icon) {
-    icon.style.animation = 'spin 1s linear infinite';
-  } else if (icon) {
-    icon.style.animation = '';
+  // El sync-icon está ahora en el indicador pequeño
+  const smallIcon = document.getElementById('sync-icon');
+  if (smallIcon && !document.getElementById('btn-guardar-todo')?.classList.contains('saving')) {
+    smallIcon.textContent = s.icon;
+    smallIcon.style.animation = (status === 'syncing') ? 'spin 1s linear infinite' : '';
   }
 }
 
@@ -4824,67 +4836,70 @@ function toggleCCDetalle(rowId) {
 
 
 // ============================================================
-// FORZAR SUBIDA A FIREBASE
+// GUARDAR TODO EN FIREBASE — botón principal
 // ============================================================
-async function forceUploadToFirebase() {
-  if (!_fsReady) { mostrarToast('⚠ Firebase no conectado.', 'amber'); return; }
-  const btn = document.getElementById('btn-force-upload');
-  if (btn) btn.style.display = 'none';
+async function guardarTodoEnFirebase() {
+  const btn = document.getElementById('btn-guardar-todo');
+  const icon = document.getElementById('btn-gt-icon');
+  const txt = document.getElementById('btn-gt-text');
+  if (!_fsReady) {
+    mostrarToast('⚠ Firebase no conectado. Verificá tu conexión.', 'amber');
+    setSyncStatus('error', 'Sin conexión');
+    return;
+  }
+  // Estado: guardando
+  if (btn) { btn.disabled = true; btn.classList.add('saving'); }
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+  if (txt) txt.textContent = 'Guardando…';
   setSyncStatus('syncing');
-  mostrarToast('⬆ Subiendo datos a Firebase…', 'amber');
+  const t0 = Date.now();
   try {
-    await Promise.all([
-      fsSaveCollection('clientes', DB.clientes),
-      fsSaveCollection('eventos', DB.eventos),
-      fsSaveCollection('movimientos', DB.movimientos),
-      fsSaveCollection('costos', DB.costos),
-      fsSaveCollection('asientos', DB.asientos),
-      fsSaveConfig(),
-    ]);
+    // Actualizar timestamp del plan de cuentas
+    DB._planCuentasTs = Date.now();
     saveLocal();
+    // Subir TODO secuencialmente para evitar límites de Firestore
+    await fsSaveCollection('clientes',    DB.clientes);
+    await fsSaveCollection('eventos',     DB.eventos);
+    await fsSaveCollection('movimientos', DB.movimientos);
+    await fsSaveCollection('costos',      DB.costos);
+    await fsSaveCollection('asientos',    DB.asientos);
+    await fsSaveConfig(); // guarda config + planCuentas + cuentas financieras
+    saveLocal();
+    const ms = Date.now() - t0;
     setSyncStatus('ok');
-    mostrarToast('✅ Datos subidos a Firebase correctamente.', 'green');
+    // Estado: OK
+    if (icon) icon.style.animation = '';
+    if (icon) icon.textContent = '✓';
+    if (txt) txt.textContent = 'Guardado (' + ms + 'ms)';
+    if (btn) { btn.classList.remove('saving'); btn.classList.add('done'); btn.disabled = false; }
+    setTimeout(() => {
+      if (icon) icon.textContent = '⬆';
+      if (txt) txt.textContent = 'Guardar en Firebase';
+      if (btn) btn.classList.remove('done');
+    }, 3000);
+    mostrarToast(
+      `✅ Todo guardado en Firebase · ${DB.clientes.length} clientes · ${DB.eventos.length} eventos · ${DB.movimientos.length} movimientos · ${DB.planCuentas.length} cuentas contables · ${ms}ms`,
+      'green'
+    );
   } catch(e) {
-    setSyncStatus('error');
-    mostrarToast('❌ Error al subir: ' + e.message, 'amber');
+    setSyncStatus('error', 'Error');
+    if (icon) { icon.style.animation = ''; icon.textContent = '⚠'; }
+    if (txt) txt.textContent = 'Error al guardar';
+    if (btn) { btn.classList.remove('saving'); btn.disabled = false; }
+    mostrarToast('❌ Error al guardar en Firebase: ' + e.message, 'amber');
+    console.error('guardarTodoEnFirebase error:', e);
   }
 }
+
+async function forceUploadToFirebase() { await guardarTodoEnFirebase(); }
 
 // ============================================================
 // SYNC MANUAL
 // ============================================================
-async function forzarSincronizacion() {
-  await syncNow();
-}
+async function forzarSincronizacion() { await guardarTodoEnFirebase(); }
 
 async function syncNow() {
-  if (!_fsReady) {
-    mostrarToast('⚠ Firebase no conectado. Verificá tu internet.', 'amber');
-    setSyncStatus('error', 'Sin conexión');
-    return;
-  }
-  setSyncStatus('syncing');
-  const t0 = Date.now();
-  // syncNow siempre SUBE los datos locales a Firebase (no descarga)
-  try {
-    await Promise.all([
-      fsSaveCollection('clientes', DB.clientes),
-      fsSaveCollection('eventos', DB.eventos),
-      fsSaveCollection('movimientos', DB.movimientos),
-      fsSaveCollection('costos', DB.costos),
-      fsSaveCollection('asientos', DB.asientos),
-      fsSaveConfig(),
-    ]);
-    saveLocal();
-    const ms = Date.now() - t0;
-    setSyncStatus('ok');
-    const btn = document.getElementById('btn-force-upload');
-    if (btn) btn.style.display = 'none';
-    mostrarToast(`✅ Subido a Firebase en ${ms}ms · ${DB.movimientos.length} movs · ${DB.clientes.length} clientes`, 'green');
-  } catch(e) {
-    setSyncStatus('error', 'Error');
-    mostrarToast('❌ Error: ' + e.message, 'amber');
-  }
+  await guardarTodoEnFirebase();
 }
 
 async function forzarCargaFirebase() {

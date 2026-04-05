@@ -3734,22 +3734,28 @@ function renderCostos() {
   document.getElementById('cfe-total').textContent = fmt(cfe);
   document.getElementById('ce-total').textContent  = fmt(ce);
   const tbody = document.getElementById('tabla-costos');
-  if (!DB.costos.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin registros</td></tr>'; return; }
+  if (!DB.costos.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3);">Sin registros</td></tr>'; return; }
   const sorted = [...DB.costos].sort((a,b)=>b.fecha>a.fecha?1:-1);
   tbody.innerHTML = sorted.map(g => {
     const ev = g.eventoId ? getEvento(g.eventoId) : null;
-    const c = ev ? getCliente(ev.clienteId) : null;
+    const c  = ev ? getCliente(ev.clienteId) : null;
     const pc = g.ctaContableId ? DB.planCuentas.find(p=>p.id===g.ctaContableId) : null;
+    const badgeClasif = g.clasif==='Variable'?'badge-red':g.clasif==='Semi Variable'?'badge-orange':g.clasif==='Fijo evento'?'badge-amber':'badge-blue';
+    const badgeEstado = g.estado==='Pagado'?'badge-green':g.estado==='Real'?'badge-blue':g.estado==='Pendiente'?'badge-red':'badge-gray';
     return `<tr>
-      <td style="font-size:12px;">${fmtDate(g.fecha)}</td>
+      <td style="font-size:12px;white-space:nowrap;">${fmtDate(g.fecha)}</td>
       <td style="color:var(--text);font-weight:500;">${g.concepto}</td>
       <td style="font-size:12px;">${ev?`${ev.tipo} · ${c?.nombre||''}`:'-'}</td>
       <td>
-        <span class="badge ${g.clasif==='Variable'?'badge-red':g.clasif==='Fijo evento'?'badge-amber':'badge-blue'}">${g.clasif}</span>
+        <span class="badge ${badgeClasif}">${g.clasif}</span>
         ${pc?`<br><span style="font-size:10px;color:var(--text3);">${pc.id}·${pc.nombre}</span>`:''}
       </td>
       <td style="font-weight:700;">${fmt(g.importe)}</td>
-      <td><span class="badge ${g.estado==='Pagado'?'badge-green':g.estado==='Real'?'badge-blue':g.estado==='Pendiente'?'badge-red':'badge-gray'}">${g.estado}</span></td>
+      <td><span class="badge ${badgeEstado}">${g.estado}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;white-space:nowrap;"
+          onclick="abrirEditarGasto('${g.id}')">&#x270F; Editar</button>
+      </td>
     </tr>`;
   }).join('');
 }

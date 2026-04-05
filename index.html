@@ -1967,6 +1967,27 @@
   </div>
 </div>
 
+
+<!-- MODAL CONFIRMAR ELIMINAR CUENTA CONTABLE -->
+<div class="modal-overlay" id="modal-confirm-eliminar-cuenta">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--red);">&#x26A0; Eliminar cuenta</div>
+      <button class="modal-close" onclick="closeModal('modal-confirm-eliminar-cuenta')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-red" style="margin-bottom:12px;">
+        <span>&#x26A0;</span>
+        <div>¿Estás seguro de que querés eliminar la cuenta <strong id="confirm-cuenta-nombre"></strong>? Esta acción no se puede deshacer.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-eliminar-cuenta')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-eliminar-cuenta">Eliminar cuenta</button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== JAVASCRIPT ==================== -->
 <script>
 // ============================================================
@@ -2347,7 +2368,13 @@ function openModal(id) {
   if (id === 'modal-asiento') initAsientoModal();
   if (id === 'modal-gasto') populateGastoForm();
   if (id === 'modal-nueva-cuenta-contable') {
-    if (!document.getElementById('cuentac-edit-id').value) resetCuentaContableForm();
+    // Solo resetear si es apertura de "nueva cuenta" (no de edición)
+    // editarCuentaContable ya setea cuentac-edit-id antes de llamar openModal
+    const editId = document.getElementById('cuentac-edit-id')?.value;
+    if (!editId) resetCuentaContableForm();
+    // Asegurar que el botón eliminar solo aparezca en edición
+    const btnEl = document.getElementById('btn-eliminar-cuentac');
+    if (btnEl) btnEl.style.display = editId ? '' : 'none';
   }
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -3140,7 +3167,8 @@ function registrarAsientoContable(asiento) {
 
 function renderContabilidad() {
   renderLibroDiario();
-  renderPlanCuentas();
+  // renderPlanCuentas se llama al activar la pestaña (switchTab)
+  // pero también al entrar a contabilidad para tener el mayor actualizado
   renderBalance();
   // Populate mayor select
   const sel = document.getElementById('select-cuenta-mayor');
@@ -3157,6 +3185,7 @@ function switchTab(el, tabId) {
     document.getElementById('tab-'+id).style.display = id === tabId ? '' : 'none';
   });
   if (tabId === 'mayor') renderMayor();
+  if (tabId === 'plan-cuentas') renderPlanCuentas();
   if (tabId === 'balance') renderBalance();
 }
 
@@ -3284,23 +3313,33 @@ function guardarCuentaContable() {
   const uso = document.getElementById('cuentac-uso').value;
   if (!codigo || !nombre || !grupo) { alert('Código, nombre y grupo son obligatorios.'); return; }
   if (editId) {
-    // Edit existing — if code changed, update all asiento references
     const idx = DB.planCuentas.findIndex(p => p.id === editId);
     if (idx !== -1) {
+      // Si cambió el código, actualizar todos los asientos que la referencian
       if (editId !== codigo) {
-        DB.asientos.forEach(a => a.lineas.forEach(l => { if(l.cuenta===editId) l.cuenta=codigo; }));
+        DB.asientos.forEach(a => a.lineas.forEach(l => { if(l.cuenta===editId){ l.cuenta=codigo; l.nombre=nombre; } }));
+        DB.costos.forEach(g => { if(g.ctaContableId===editId) g.ctaContableId=codigo; });
       }
       DB.planCuentas[idx] = { id: codigo, nombre, grupo, subgrupo, clasif, uso };
     }
   } else {
-    if (DB.planCuentas.find(p => p.id === codigo)) { alert('Ya existe una cuenta con ese código.'); return; }
+    if (DB.planCuentas.find(p => p.id === codigo)) {
+      mostrarToast('Ya existe una cuenta con el código ' + codigo, 'amber');
+      return;
+    }
     DB.planCuentas.push({ id: codigo, nombre, grupo, subgrupo, clasif, uso });
     DB.planCuentas.sort((a,b) => a.id > b.id ? 1 : -1);
   }
-  saveDB();
+  saveDB(true); // sync inmediato a Firebase
   closeModal('modal-nueva-cuenta-contable');
   resetCuentaContableForm();
   renderPlanCuentas();
+  // Si estamos en contabilidad, actualizar selects
+  const selMayor = document.getElementById('select-cuenta-mayor');
+  if (selMayor) {
+    selMayor.innerHTML = '<option value="">— Elegir cuenta —</option>';
+    DB.planCuentas.forEach(pc => { selMayor.innerHTML += `<option value="${pc.id}">${pc.id} · ${pc.nombre}</option>`; });
+  }
   mostrarToast('✅ Cuenta contable guardada: ' + nombre, 'green');
 }
 
@@ -3309,14 +3348,27 @@ function eliminarCuentaContable() {
   const pc = DB.planCuentas.find(p => p.id === editId);
   if (!pc) return;
   const usada = DB.asientos.some(a => a.lineas.some(l => l.cuenta === editId));
-  if (usada) { alert('No se puede eliminar: esta cuenta tiene asientos registrados.'); return; }
-  if (!confirm(`¿Eliminar la cuenta ${editId} · ${pc.nombre}? Esta acción no se puede deshacer.`)) return;
-  DB.planCuentas = DB.planCuentas.filter(p => p.id !== editId);
-  saveDB();
-  closeModal('modal-nueva-cuenta-contable');
-  resetCuentaContableForm();
-  renderPlanCuentas();
-  mostrarToast('Cuenta eliminada: ' + pc.nombre, 'amber');
+  if (usada) {
+    mostrarToast('No se puede eliminar: esta cuenta tiene asientos registrados.', 'amber');
+    return;
+  }
+  // Usar modal de confirmación en lugar de confirm() nativo
+  abrirConfirmEliminarCuenta(editId, pc.nombre);
+}
+
+function abrirConfirmEliminarCuenta(editId, nombre) {
+  const overlay = document.getElementById('modal-confirm-eliminar-cuenta');
+  document.getElementById('confirm-cuenta-nombre').textContent = `${editId} · ${nombre}`;
+  document.getElementById('btn-confirm-eliminar-cuenta').onclick = () => {
+    closeModal('modal-confirm-eliminar-cuenta');
+    DB.planCuentas = DB.planCuentas.filter(p => p.id !== editId);
+    saveDB(true);
+    closeModal('modal-nueva-cuenta-contable');
+    resetCuentaContableForm();
+    renderPlanCuentas();
+    mostrarToast('Cuenta eliminada: ' + nombre, 'amber');
+  };
+  openModal('modal-confirm-eliminar-cuenta');
 }
 
 function resetCuentaContableForm() {

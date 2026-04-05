@@ -26,16 +26,10 @@
   window._FS = {
     db, doc, setDoc, getDoc, collection, getDocs, deleteDoc,
     onSnapshot, writeBatch, serverTimestamp,
-    // Colecciones raíz
     COL: {
-      clientes:    'clientes',
-      eventos:     'eventos',
-      movimientos: 'movimientos',
-      cuentas:     'cuentas',
-      costos:      'costos',
-      asientos:    'asientos',
-      config:      'config',
-      planCuentas: 'planCuentas',
+      clientes:'clientes', eventos:'eventos', movimientos:'movimientos',
+      cuentas:'cuentas', costos:'costos', asientos:'asientos',
+      config:'config', planCuentas:'planCuentas',
     }
   };
   window._FS_READY = true;
@@ -2109,13 +2103,15 @@ let _saveTimer = null;
 let _pendingSync = false;
 
 function saveDB(immediate = false) {
-  saveLocal(); // siempre local primero
+  saveLocal();
   if (!_fsReady) { setSyncStatus('local'); return; }
   setSyncStatus('syncing');
   clearTimeout(_saveTimer);
-  const delay = immediate ? 0 : 600;
+  const delay = immediate ? 50 : 600;
   _saveTimer = setTimeout(async () => {
     try {
+      // Pausar listeners propios mientras guardamos para no hacer loop
+      _initDone = false;
       await Promise.all([
         fsSaveCollection('clientes', DB.clientes),
         fsSaveCollection('eventos', DB.eventos),
@@ -2124,9 +2120,12 @@ function saveDB(immediate = false) {
         fsSaveCollection('asientos', DB.asientos),
         fsSaveConfig(),
       ]);
-      setSyncStatus('ok');
       saveLocal();
+      setSyncStatus('ok');
+      // Pequeña pausa antes de re-habilitar listeners para que los onSnapshot propios pasen
+      setTimeout(() => { _initDone = true; }, 1000);
     } catch(e) {
+      _initDone = true;
       setSyncStatus('error', 'Error');
       console.error('saveDB error:', e);
     }
@@ -2162,45 +2161,25 @@ async function loadFromFirestore() {
     const cfgSnap = await getDoc(doc(db, 'config', 'main'));
     const pcSnap  = await getDoc(doc(db, 'config', 'planCuentas'));
     const ctSnap  = await getDoc(doc(db, 'config', 'cuentas'));
-    // Comparar Firebase vs HTML para decidir cuál tiene datos más recientes
-    const htmlMovCount = DB.movimientos.length;
-    const fsMovCount   = movimientos.length;
-    const htmlSaldo    = DB.cuentas.reduce((s,c) => s+(c.saldo||0), 0);
-    const fsSaldo      = ctSnap.exists() && ctSnap.data().items
-      ? ctSnap.data().items.reduce((s,c) => s+(c.saldo||0), 0) : 0;
-    // Comparar plan de cuentas: Firebase tiene plan actualizado si tiene MÁS cuentas
-    const htmlPCCount  = DB.planCuentas.length;
-    const fsPCItems    = pcSnap.exists() ? (pcSnap.data().items||[]) : [];
-    const fsPCCount    = fsPCItems.length;
-    // Timestamp del plan de cuentas en Firebase
-    const fsPCTs       = pcSnap.exists() ? (pcSnap.data()._pcTs || 0) : 0;
-    const htmlPCTs     = DB._planCuentasTs || 0;
+    // Estrategia simple: Firebase es la fuente de verdad.
+    // Si tiene datos → usarlos siempre (son los guardados por el usuario).
+    // Si está vacío → mantener datos del HTML (backup inicial).
+    const fsHasDatos = clientes.length > 0 || eventos.length > 0 || movimientos.length > 0;
 
-    if (fsMovCount >= htmlMovCount && fsSaldo >= htmlSaldo) {
-      // Firebase tiene movimientos iguales o más — usar datos operativos de Firebase
-      if (clientes.length || eventos.length || movimientos.length) {
-        DB.clientes    = clientes;
-        DB.eventos     = eventos;
-        DB.movimientos = movimientos;
-        DB.costos      = costos;
-        DB.asientos    = asientos;
-      }
-      if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
-      // Plan de cuentas: usar Firebase SOLO si tiene más cuentas O timestamp más nuevo
-      if (fsPCCount > 0 && (fsPCCount >= htmlPCCount || fsPCTs > htmlPCTs)) {
-        DB.planCuentas = fsPCItems;
-      }
-      // Cuentas financieras: usar Firebase si tiene saldo >= HTML
-      if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
-    } else {
-      // Firebase está desactualizado en movimientos/saldos
-      if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
-      // Plan de cuentas: usar Firebase si tiene MÁS cuentas que el HTML hardcoded
-      if (fsPCCount > htmlPCCount || fsPCTs > htmlPCTs) {
-        DB.planCuentas = fsPCItems;
-      }
-      // NO sobreescribir cuentas financieras ni movimientos
+    if (fsHasDatos) {
+      DB.clientes    = clientes;
+      DB.eventos     = eventos;
+      DB.movimientos = movimientos;
+      DB.costos      = costos;
+      DB.asientos    = asientos;
     }
+    // Config siempre desde Firebase (si existe)
+    if (cfgSnap.exists()) { const d = cfgSnap.data(); delete d._ts; Object.assign(DB.config, d); }
+    // Plan de cuentas: desde Firebase SIEMPRE si tiene cuentas
+    const fsPCItems = pcSnap.exists() ? (pcSnap.data().items||[]) : [];
+    if (fsPCItems.length > 0) DB.planCuentas = fsPCItems;
+    // Cuentas financieras: desde Firebase si existen
+    if (ctSnap.exists() && ctSnap.data().items?.length) DB.cuentas = ctSnap.data().items;
     saveLocal();
     setSyncStatus('ok');
     return true;
@@ -2251,54 +2230,120 @@ function loadDB() {
 }
 
 // Init Firebase when ready
+// ============================================================
+// LISTENERS EN TIEMPO REAL (onSnapshot)
+// Cuando cualquier dispositivo guarda, TODOS reciben el cambio
+// ============================================================
+let _listeners = []; // para poder desuscribirse si es necesario
+let _initDone = false;
+
 document.addEventListener('firebase-ready', async () => {
   _fsReady = true;
 
-  // Snapshot del estado actual del HTML (datos correctos inyectados)
-  const htmlMovs  = DB.movimientos.length;
-  const htmlTotal = DB.cuentas.reduce((s,c) => s + (c.saldo||0), 0);
-
+  // 1. Carga inicial única
   const loaded = await loadFromFirestore();
-
-  if (loaded) {
-    const fsMovs  = DB.movimientos.length;
-    const fsTotal = DB.cuentas.reduce((s,c) => s + (c.saldo||0), 0);
-
-    // Si Firebase tiene MENOS movimientos o saldos menores → está desactualizado
-    // Subir los datos del HTML a Firebase
-    if (htmlMovs > fsMovs || htmlTotal > fsTotal) {
-      console.log(`Firebase desactualizado (${fsMovs} movs / $${fsTotal}) vs HTML (${htmlMovs} movs / $${htmlTotal}). Subiendo datos correctos…`);
-      // Restaurar datos del HTML (que son los correctos del backup)
-      loadDB(); // recarga HTML hardcoded
-      setSyncStatus('syncing');
-      try {
-        await Promise.all([
-          fsSaveCollection('clientes', DB.clientes),
-          fsSaveCollection('eventos', DB.eventos),
-          fsSaveCollection('movimientos', DB.movimientos),
-          fsSaveCollection('costos', DB.costos),
-          fsSaveCollection('asientos', DB.asientos),
-          fsSaveConfig(),
-        ]);
-        saveLocal();
-        setSyncStatus('ok');
-        renderDashboard();
-        mostrarToast('☁ Firebase actualizado con datos correctos · ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}), 'green');
-      } catch(e) {
-        setSyncStatus('error', 'Error al subir');
-        mostrarToast('⚠ Error al actualizar Firebase: ' + e.message, 'amber');
-      }
-    } else {
-      // Firebase tiene datos iguales o más recientes — usar Firebase
-      renderDashboard();
-      setSyncStatus('ok');
-      mostrarToast('☁ Sincronizado · ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'}), 'green');
-    }
-  } else {
+  if (!loaded) {
     setSyncStatus('error', 'Sin acceso');
     mostrarToast('⚠ Firebase sin acceso. Verificá las Reglas de Firestore.', 'amber');
+    return;
   }
+
+  renderDashboard();
+  setSyncStatus('ok');
+  mostrarToast('☁ Conectado · ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), 'green');
+  _initDone = true;
+
+  // 2. Activar listeners en tiempo real para cada colección
+  iniciarListenersTiempoReal();
 });
+
+function iniciarListenersTiempoReal() {
+  const { db, collection, doc, onSnapshot } = window._FS;
+
+  // Helper: aplicar datos recibidos de Firebase y re-renderizar
+  function aplicarCambioFirebase(colName, docs) {
+    if (!_initDone) return;
+    const items = docs.map(d => { const data = d.data(); delete data._ts; return data; });
+    let cambio = false;
+    if (colName === 'clientes'    && JSON.stringify(items) !== JSON.stringify(DB.clientes))    { DB.clientes    = items; cambio = true; }
+    if (colName === 'eventos'     && JSON.stringify(items) !== JSON.stringify(DB.eventos))     { DB.eventos     = items; cambio = true; }
+    if (colName === 'movimientos' && JSON.stringify(items) !== JSON.stringify(DB.movimientos)) {
+      // Normalizar subtipos
+      items.forEach(m => {
+        if (!m.subtipo) m.subtipo = m.tipo === 'Cobro' ? (m.eventoId ? 'Cobro-Cliente' : 'Cobro-Varios') : m.tipo;
+        if (m.subtipo === 'Cobro-Cliente' || m.subtipo === 'Cobro-Varios') m.tipo = 'Cobro';
+      });
+      DB.movimientos = items; cambio = true;
+    }
+    if (colName === 'costos'      && JSON.stringify(items) !== JSON.stringify(DB.costos))      { DB.costos      = items; cambio = true; }
+    if (colName === 'asientos'    && JSON.stringify(items) !== JSON.stringify(DB.asientos))    { DB.asientos    = items; cambio = true; }
+    if (cambio) {
+      saveLocal();
+      actualizarVistaActiva();
+    }
+  }
+
+  // Listener plan de cuentas (doc único en config/planCuentas)
+  const unsubPC = onSnapshot(doc(db, 'config', 'planCuentas'), (snap) => {
+    if (!_initDone || !snap.exists()) return;
+    const data = snap.data();
+    const items = data.items || [];
+    if (items.length > 0 && JSON.stringify(items) !== JSON.stringify(DB.planCuentas)) {
+      DB.planCuentas = items;
+      saveLocal();
+      // Re-renderizar plan de cuentas si está visible
+      const tabPC = document.getElementById('tab-plan-cuentas');
+      if (tabPC && tabPC.style.display !== 'none') renderPlanCuentas();
+      // Actualizar selector de mayor
+      const selMayor = document.getElementById('select-cuenta-mayor');
+      if (selMayor) {
+        const cur = selMayor.value;
+        selMayor.innerHTML = '<option value="">— Elegir cuenta —</option>';
+        DB.planCuentas.forEach(pc => { selMayor.innerHTML += `<option value="${pc.id}" ${pc.id===cur?'selected':''}>${pc.id} · ${pc.nombre}</option>`; });
+      }
+      mostrarToast('🔄 Plan de cuentas actualizado desde otro dispositivo', 'amber');
+    }
+  }, (e) => console.error('onSnapshot planCuentas:', e));
+
+  // Listener cuentas financieras (config/cuentas)
+  const unsubCtas = onSnapshot(doc(db, 'config', 'cuentas'), (snap) => {
+    if (!_initDone || !snap.exists()) return;
+    const items = snap.data().items || [];
+    if (items.length > 0 && JSON.stringify(items) !== JSON.stringify(DB.cuentas)) {
+      DB.cuentas = items;
+      saveLocal();
+      actualizarVistaActiva();
+    }
+  }, (e) => console.error('onSnapshot cuentas:', e));
+
+  // Listeners colecciones operativas
+  ['clientes','eventos','movimientos','costos','asientos'].forEach(colName => {
+    const unsub = onSnapshot(collection(db, colName), (snap) => {
+      if (!_initDone) return;
+      aplicarCambioFirebase(colName, snap.docs);
+    }, (e) => console.error('onSnapshot ' + colName + ':', e));
+    _listeners.push(unsub);
+  });
+
+  _listeners.push(unsubPC, unsubCtas);
+}
+
+function actualizarVistaActiva() {
+  // Re-renderizar solo la vista que está activa
+  const vistas = ['dashboard','clientes','eventos','tesoreria','cuentas_corrientes',
+                  'caja_bancos','contabilidad','costos','resultado','flujo_fondos','bi','reportes'];
+  vistas.forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el && el.classList.contains('active')) {
+      const renders = { dashboard:renderDashboard, clientes:renderClientes,
+        eventos:renderEventos, tesoreria:renderTesoreria, cuentas_corrientes:renderCC,
+        caja_bancos:renderCajaBancos, contabilidad:renderLibroDiario, costos:renderCostos,
+        resultado:renderEstadoResultados, flujo_fondos:renderFlujoFondos, bi:renderBI,
+        reportes:renderReportes };
+      if (renders[v]) renders[v]();
+    }
+  });
+}
 
 // ============================================================
 // UTILS
@@ -3376,17 +3421,20 @@ function guardarCuentaContable() {
     selMayor.innerHTML = '<option value="">— Elegir cuenta —</option>';
     DB.planCuentas.forEach(pc => { selMayor.innerHTML += `<option value="${pc.id}">${pc.id} · ${pc.nombre}</option>`; });
   }
-  mostrarToast('✅ ' + nombre + ' guardado localmente. Sincronizando con Firebase…', 'green');
-  // Sincronizar con Firebase
+  // Guardar en Firebase inmediatamente
+  // El onSnapshot propagará el cambio automáticamente a todos los dispositivos abiertos
   if (_fsReady) {
     setSyncStatus('syncing');
+    DB._planCuentasTs = Date.now();
     fsSaveConfig().then(() => {
       setSyncStatus('ok');
-      mostrarToast('☁ Plan de cuentas sincronizado en Firebase', 'green');
+      mostrarToast(`✅ ${nombre} guardado. Cambio propagado a todos los dispositivos.`, 'green');
     }).catch(e => {
       setSyncStatus('error');
-      mostrarToast('⚠ Guardado local OK, error en Firebase: ' + e.message, 'amber');
+      mostrarToast('⚠ Error al guardar en Firebase: ' + e.message, 'amber');
     });
+  } else {
+    mostrarToast('✅ ' + nombre + ' guardado localmente (sin conexión a Firebase).', 'amber');
   }
 }
 
@@ -4854,17 +4902,20 @@ async function guardarTodoEnFirebase() {
   setSyncStatus('syncing');
   const t0 = Date.now();
   try {
-    // Actualizar timestamp del plan de cuentas
+    // Deshabilitar temporalmente los listeners para no re-renderizar
+    // mientras nosotros mismos estamos guardando
+    _initDone = false;
     DB._planCuentasTs = Date.now();
     saveLocal();
-    // Subir TODO secuencialmente para evitar límites de Firestore
+    // Subir TODO secuencialmente
     await fsSaveCollection('clientes',    DB.clientes);
     await fsSaveCollection('eventos',     DB.eventos);
     await fsSaveCollection('movimientos', DB.movimientos);
     await fsSaveCollection('costos',      DB.costos);
     await fsSaveCollection('asientos',    DB.asientos);
-    await fsSaveConfig(); // guarda config + planCuentas + cuentas financieras
+    await fsSaveConfig();
     saveLocal();
+    _initDone = true; // re-habilitar listeners
     const ms = Date.now() - t0;
     setSyncStatus('ok');
     // Estado: OK
@@ -4882,6 +4933,7 @@ async function guardarTodoEnFirebase() {
       'green'
     );
   } catch(e) {
+    _initDone = true; // re-habilitar listeners aunque haya error
     setSyncStatus('error', 'Error');
     if (icon) { icon.style.animation = ''; icon.textContent = '⚠'; }
     if (txt) txt.textContent = 'Error al guardar';

@@ -716,56 +716,57 @@
           <div class="section-title">Resumen Ejecutivo</div>
           <div class="section-sub">Período actual · Criterio devengado</div>
         </div>
-        <select style="width:auto;font-size:12px;padding:6px 10px;" id="dash-period" onchange="renderDashboard()">
+        <select style="width:auto;font-size:12px;padding:6px 10px;" id="dash-periodo" onchange="renderDashboard()">
           <option value="mes">Este mes</option>
           <option value="trim">Este trimestre</option>
           <option value="año">Este año</option>
         </select>
       </div>
 
-      <!-- KPI CARDS -->
-      <div class="kpi-scroll-row">
+      <!-- KPI CARDS — FILA 1: métricas principales -->
+      <div class="grid g4" style="margin-bottom:14px;">
         <div class="card card-accent">
-          <div class="card-title">Ingreso Devengado</div>
+          <div class="card-title">Ingresos Total</div>
           <div class="card-value" id="kpi-devengado">$0</div>
           <div class="card-sub" id="kpi-devengado-sub">— eventos ejecutados</div>
         </div>
-        <div class="card card-blue">
-          <div class="card-title">Cobrado</div>
+        <div class="card card-red">
+          <div class="card-title">Total Costos</div>
           <div class="card-value" id="kpi-cobrado">$0</div>
-          <div class="card-sub" id="kpi-cobrado-sub">— criterio caja</div>
+          <div class="card-sub" id="kpi-cobrado-sub">— del período</div>
         </div>
         <div class="card card-green">
-          <div class="card-title">Utilidad Estimada</div>
+          <div class="card-title">Resultado Neto</div>
           <div class="card-value" id="kpi-utilidad">$0</div>
-          <div class="card-sub" id="kpi-utilidad-sub">— margen promedio</div>
+          <div class="card-sub" id="kpi-utilidad-sub">— margen</div>
         </div>
-        <div class="card card-red">
+        <div class="card">
           <div class="card-title">A Cobrar</div>
           <div class="card-value" id="kpi-cobrar">$0</div>
-          <div class="card-sub" id="kpi-cobrar-sub">— saldo pendiente</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Contratadas</div>
-          <div class="card-value" id="kpi-contratadas">0</div>
-          <div class="card-sub">En proceso</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Ejecutadas</div>
-          <div class="card-value" id="kpi-ejecutadas">0</div>
-          <div class="card-sub">Ingreso reconocido</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Anticipos</div>
-          <div class="card-value" id="kpi-anticipos">$0</div>
-          <div class="card-sub" style="color:var(--accent);">Pasivo</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Caja/Bancos</div>
-          <div class="card-value" id="kpi-saldo">$0</div>
-          <div class="card-sub">Disponible</div>
+          <div class="card-sub" id="kpi-cobrar-sub">Saldo pendiente</div>
         </div>
       </div>
+      <!-- KPI CARDS — FILA 2: operativos -->
+      <div class="grid g3" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="card-title">Eventos ejecutados</div>
+          <div class="card-value" id="kpi-ejecutadas">0</div>
+          <div class="card-sub" id="kpi-ejecutadas-sub">En el período</div>
+        </div>
+        <div class="card card-amber">
+          <div class="card-title">Anticipos clientes</div>
+          <div class="card-value" id="kpi-anticipos">$0</div>
+          <div class="card-sub" id="kpi-anticipos-sub" style="color:var(--accent);">Pasivo · ingreso diferido</div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-title">Disponibilidades</div>
+          <div class="card-value" id="kpi-saldo">$0</div>
+          <div class="card-sub" id="kpi-saldo-sub">Caja + Banco + Virtual</div>
+        </div>
+      </div>
+      <!-- IDs ocultos para compatibilidad -->
+      <span id="kpi-contratadas" style="display:none;"></span>
+      <span id="kpi-cobrado-sub" style="display:none;"></span>
 
       <div class="grid g2-1" style="margin-bottom:20px;">
         <!-- Próximos eventos -->
@@ -781,18 +782,11 @@
             </div>
           </div>
         </div>
-        <!-- Alertas -->
+        <!-- Cuentas activas -->
         <div class="card">
-          <div style="font-weight:600;font-size:15px;margin-bottom:16px;">Alertas y Estado</div>
-          <div id="alertas-panel">
-            <div class="alert alert-amber">
-              <span>⚠</span> Sin eventos cargados aún
-            </div>
-          </div>
-          <div style="margin-top:20px;">
-            <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Cuentas Activas</div>
-            <div class="grid g2" id="cuentas-resumen"></div>
-          </div>
+          <div style="font-weight:600;font-size:15px;margin-bottom:16px;">Cuentas Activas</div>
+          <div id="cuentas-resumen" class="grid g2"></div>
+          <div id="alertas-panel" style="display:none;"></div>
         </div>
       </div>
 
@@ -1325,15 +1319,43 @@
       </div>
 
       <div id="bi-equilibrio" style="display:none;">
-        <div class="grid g3" style="margin-bottom:16px;" id="bi-equil-kpis"></div>
-        <div class="grid g2">
+        <!-- KPIs PE -->
+        <div class="grid g4" style="margin-bottom:16px;" id="bi-equil-kpis"></div>
+        <!-- Fórmula del cálculo -->
+        <div class="acct-note" id="bi-pe-formula" style="margin-bottom:16px;">
+          <span>📐</span>
+          <div id="bi-pe-formula-text">Cargando fórmula...</div>
+        </div>
+        <div class="grid g2" style="margin-bottom:16px;">
+          <!-- Gráfico acumulativo -->
           <div class="card">
-            <div style="font-weight:600;font-size:14px;margin-bottom:14px;">Análisis punto de equilibrio</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:6px;">Punto de equilibrio acumulativo</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">A medida que se ejecutan eventos — en personas y en $ —</div>
             <div id="bi-equil-chart"></div>
           </div>
+          <!-- Simulador por personas -->
           <div class="card">
-            <div style="font-weight:600;font-size:14px;margin-bottom:14px;">Simulador de escenarios</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:6px;">Simulador por personas</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">¿Cuántas personas necesitás para cubrir todos los costos?</div>
             <div id="bi-simulador"></div>
+          </div>
+        </div>
+        <!-- Tabla acumulativa por evento ejecutado -->
+        <div class="card" style="padding:0;">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;">
+            Acumulado por evento ejecutado
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th><th>Evento</th><th>Fecha</th><th>Personas</th>
+                  <th>Ingreso evento</th><th>Costos evento</th><th>Contribución</th>
+                  <th>Acum. ingreso</th><th>Acum. costos fijos</th><th>Estado PE</th>
+                </tr>
+              </thead>
+              <tbody id="bi-pe-tabla-acum"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -4212,15 +4234,51 @@ function renderCC() {
 // DASHBOARD
 // ============================================================
 function renderDashboard() {
-  const mesActual = new Date().toISOString().substring(0,7);
-  const eventosEjecutados = DB.eventos.filter(e => e.estado === 'Ejecutado' || e.estado === 'Cerrado');
-  const eventosEjecutadosMes = eventosEjecutados.filter(e => e.fechaEvento?.substring(0,7) === mesActual);
-  const devengadoMes = eventosEjecutadosMes.reduce((s,e) => s + (e.total||0), 0);
-  const cobradoMes = DB.movimientos.filter(m => m.tipo==='Cobro' && !m.anulado && !m.esContraasiento && m.fecha?.substring(0,7)===mesActual).reduce((s,m)=>s+(m.importe||0),0);
-  const utilidadEstimada = devengadoMes * 0.35; // estimado
-  const totalCobrar = DB.eventos.reduce((s,e) => s + saldoEvento(e.id), 0);
-  const contratadas = DB.eventos.filter(e=>!['Cancelado','Cerrado'].includes(e.estado)).length;
-  const ejecutadas = eventosEjecutados.length;
+  // ─── Período según filtro del dashboard ───────────────────────────────
+  const filtroPeriodo = document.getElementById('dash-periodo')?.value || 'mes';
+  const hoy = today();
+  const ahora = new Date();
+  let desdeFilter, hastaFilter;
+  if (filtroPeriodo === 'mes') {
+    desdeFilter = hoy.substring(0,7);
+    hastaFilter = hoy.substring(0,7);
+  } else if (filtroPeriodo === 'trim') {
+    const trimStart = new Date(ahora.getFullYear(), Math.floor(ahora.getMonth()/3)*3, 1);
+    desdeFilter = trimStart.toISOString().substring(0,7);
+    hastaFilter = hoy.substring(0,7);
+  } else {
+    desdeFilter = ahora.getFullYear() + '-01';
+    hastaFilter = ahora.getFullYear() + '-12';
+  }
+
+  // ─── Eventos ejecutados en el período ─────────────────────────────────
+  const eventosEjecutados = DB.eventos.filter(e =>
+    (e.estado === 'Ejecutado' || e.estado === 'Cerrado') &&
+    e.fechaEvento?.substring(0,7) >= desdeFilter &&
+    e.fechaEvento?.substring(0,7) <= hastaFilter
+  );
+  const totalEjecutados = eventosEjecutados.length;
+
+  // ─── Ingresos Total: suma de totales de eventos ejecutados ───────────
+  const ingresoTotal = eventosEjecutados.reduce((s,e) => s + (e.total||0), 0);
+
+  // ─── Total Costos: suma de costos del período ─────────────────────────
+  const costoTotal = DB.costos.filter(g => {
+    const mk = g.fecha?.substring(0,7) || '';
+    return mk >= desdeFilter && mk <= hastaFilter && !g.anulado;
+  }).reduce((s,g) => s + (g.importe||0), 0);
+
+  // ─── Resultado Neto ───────────────────────────────────────────────────
+  const resultadoNeto = ingresoTotal - costoTotal;
+  const margenPct = ingresoTotal > 0 ? (resultadoNeto/ingresoTotal*100).toFixed(1) : 0;
+
+  // ─── A Cobrar: saldo pendiente de TODOS los eventos activos ──────────
+  const totalCobrar = DB.eventos
+    .filter(e => !['Cancelado'].includes(e.estado))
+    .reduce((s,e) => s + saldoEvento(e.id), 0);
+
+  // ─── Anticipos: cobros de eventos NO ejecutados (pasivo devengado) ────
+  const eventosNoEjec = DB.eventos.filter(e => e.estado !== 'Ejecutado' && e.estado !== 'Cerrado' && e.estado !== 'Cancelado');
   const anticipos = DB.movimientos.filter(m =>
     m.tipo === 'Cobro' && !m.anulado && !m.esContraasiento && m.eventoId
   ).reduce((s, m) => {
@@ -4228,21 +4286,58 @@ function renderDashboard() {
     if (ev && ev.estado !== 'Ejecutado' && ev.estado !== 'Cerrado') return s + (m.importe||0);
     return s;
   }, 0);
-  const saldoTotal = DB.cuentas.reduce((s,c)=>s+c.saldo,0);
-  document.getElementById('kpi-devengado').textContent = fmt(devengadoMes);
-  document.getElementById('kpi-devengado-sub').textContent = `${eventosEjecutadosMes.length} evento${eventosEjecutadosMes.length!==1?'s':''} ejecutados`;
-  document.getElementById('kpi-cobrado').textContent = fmt(cobradoMes);
-  document.getElementById('kpi-cobrado-sub').textContent = 'Criterio caja';
-  document.getElementById('kpi-utilidad').textContent = fmt(utilidadEstimada);
-  document.getElementById('kpi-utilidad-sub').textContent = 'Estimado ~35%';
+  const cantEventosAnticipo = new Set(
+    DB.movimientos
+      .filter(m => m.tipo==='Cobro' && !m.anulado && !m.esContraasiento && m.eventoId)
+      .filter(m => { const ev=getEvento(m.eventoId); return ev && ev.estado!=='Ejecutado' && ev.estado!=='Cerrado'; })
+      .map(m => m.eventoId)
+  ).size;
+
+  // ─── Disponibilidades: desde asientos contables cuentas 1000/1010/1020 ─
+  // Saldo de cada cuenta = Σ Debe - Σ Haber de todos sus asientos
+  function saldoCuentaContable(cuentaId) {
+    return DB.asientos.reduce((s, a) => {
+      a.lineas.forEach(l => {
+        if (l.cuenta === cuentaId) s += (l.debe||0) - (l.haber||0);
+      });
+      return s;
+    }, 0);
+  }
+  const saldoCaja    = saldoCuentaContable('1000');
+  const saldoBancos  = saldoCuentaContable('1010');
+  const saldoVirtual = saldoCuentaContable('1020');
+  const disponibilidades = saldoCaja + saldoBancos + saldoVirtual;
+  // Desglose por cuenta contable con nombre del plan
+  const pc1000 = DB.planCuentas.find(p=>p.id==='1000')?.nombre || 'Caja';
+  const pc1010 = DB.planCuentas.find(p=>p.id==='1010')?.nombre || 'Bancos';
+  const pc1020 = DB.planCuentas.find(p=>p.id==='1020')?.nombre || 'Billeteras virtuales';
+
+  // ─── Actualizar KPIs ──────────────────────────────────────────────────
+  document.getElementById('kpi-devengado').textContent = fmt(ingresoTotal);
+  document.getElementById('kpi-devengado-sub').textContent = `${totalEjecutados} evento${totalEjecutados!==1?'s':''} ejecutados`;
+  document.getElementById('kpi-cobrado').textContent = fmt(costoTotal);
+  const costoSub = ingresoTotal > 0 ? (costoTotal/ingresoTotal*100).toFixed(1)+'% del ingreso' : 'del período';
+  document.getElementById('kpi-cobrado-sub').style.display = '';
+  document.getElementById('kpi-cobrado-sub').textContent = costoSub;
+  document.getElementById('kpi-utilidad').textContent = fmt(resultadoNeto);
+  document.getElementById('kpi-utilidad').style.color = resultadoNeto >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kpi-utilidad-sub').textContent = margenPct + '% margen';
   document.getElementById('kpi-cobrar').textContent = fmt(totalCobrar);
   document.getElementById('kpi-cobrar-sub').textContent = 'Saldo pendiente acumulado';
-  document.getElementById('kpi-contratadas').textContent = contratadas;
-  document.getElementById('kpi-ejecutadas').textContent = ejecutadas;
+  document.getElementById('kpi-ejecutadas').textContent = totalEjecutados;
+  document.getElementById('kpi-ejecutadas-sub').textContent = 'Eventos ejecutados';
   document.getElementById('kpi-anticipos').textContent = fmt(anticipos);
-  document.getElementById('kpi-saldo').textContent = fmt(saldoTotal);
-  // Próximos eventos
-  const hoy = today();
+  document.getElementById('kpi-anticipos-sub').textContent = anticipos > 0
+    ? `${cantEventosAnticipo} evento${cantEventosAnticipo!==1?'s':''} con anticipos`
+    : 'Sin anticipos pendientes';
+  document.getElementById('kpi-saldo').textContent = fmt(disponibilidades);
+  const desglose = [
+    saldoCaja    !== 0 ? `${pc1000} ${fmt(Math.abs(saldoCaja))}${saldoCaja<0?' H':' D'}` : null,
+    saldoBancos  !== 0 ? `${pc1010} ${fmt(Math.abs(saldoBancos))}${saldoBancos<0?' H':' D'}` : null,
+    saldoVirtual !== 0 ? `${pc1020} ${fmt(Math.abs(saldoVirtual))}${saldoVirtual<0?' H':' D'}` : null,
+  ].filter(Boolean).join(' · ');
+  document.getElementById('kpi-saldo-sub').textContent = desglose || 'Sin movimientos contables';
+  // Próximos eventos (usa hoy ya declarado arriba)
   const proximos = DB.eventos.filter(e=>e.fechaEvento>=hoy&&!['Cancelado','Cerrado','Ejecutado'].includes(e.estado)).sort((a,b)=>a.fechaEvento>b.fechaEvento?1:-1).slice(0,5);
   const proxDiv = document.getElementById('proximos-eventos');
   if (!proximos.length) {
@@ -5112,121 +5207,271 @@ function renderBIEstacionalidad(año) {
 }
 
 function renderBIEquilibrio() {
-  // Costos fijos mensuales (estructura)
-  const costosEstructura = DB.costos.filter(g=>g.clasif==='Estructura');
-  const mesesConCostos = [...new Set(costosEstructura.map(g=>getMesKey(g.fecha)).filter(Boolean))];
-  const cfMensual = mesesConCostos.length > 0
-    ? costosEstructura.reduce((s,g)=>s+g.importe,0) / mesesConCostos.length
-    : 0;
-  // Ticket promedio y margen contribución promedio
-  const evs = DB.eventos.filter(e=>(e.estado==='Ejecutado'||e.estado==='Cerrado')&&e.total>0);
-  const ticketProm = evs.length ? evs.reduce((s,e)=>s+(e.total||0),0)/evs.length : 0;
-  const cvPorEvento = evs.length ? DB.costos.filter(g=>g.clasif==='Variable').reduce((s,g)=>s+g.importe,0)/Math.max(evs.length,1) : 0;
-  const cfePorEvento = evs.length ? DB.costos.filter(g=>g.clasif==='Fijo evento').reduce((s,g)=>s+g.importe,0)/Math.max(evs.length,1) : 0;
-  const contribucionPorEvento = ticketProm - cvPorEvento - cfePorEvento;
-  const peEventos = contribucionPorEvento > 0 && cfMensual > 0 ? Math.ceil(cfMensual / contribucionPorEvento) : 0;
-  const peIngresos = peEventos * ticketProm;
+  const añoSel = parseInt(document.getElementById('bi-año')?.value || new Date().getFullYear());
 
+  // ── Datos base ────────────────────────────────────────────────────────
+  const evs = DB.eventos
+    .filter(e => (e.estado==='Ejecutado'||e.estado==='Cerrado') && e.total>0)
+    .sort((a,b) => a.fechaEvento > b.fechaEvento ? 1 : -1);
+
+  // Precio promedio por persona (precioPP) desde eventos ejecutados
+  const preciosPP = evs.filter(e=>e.precioPP>0).map(e=>e.precioPP);
+  const precioPP_prom = preciosPP.length
+    ? Math.round(preciosPP.reduce((s,v)=>s+v,0)/preciosPP.length)
+    : (DB.config.precioPP || 0);
+
+  // Personas promedio por evento
+  const personasArr = evs.filter(e=>e.invitados>0).map(e=>e.invitados);
+  const personasProm = personasArr.length
+    ? Math.round(personasArr.reduce((s,v)=>s+v,0)/personasArr.length)
+    : 0;
+
+  // Costos variables por persona (de eventos ejecutados)
+  const costos_var_total = DB.costos.filter(g=>g.clasif==='Variable'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+  const personas_total = evs.reduce((s,e)=>s+(e.invitados||0),0);
+  const cvPP = personas_total > 0 ? costos_var_total / personas_total : 0; // costo variable por persona
+
+  // Costos fijos por evento (promedio)
+  const costos_fe_total = DB.costos.filter(g=>g.clasif==='Fijo evento'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+  const costos_sv_total = DB.costos.filter(g=>g.clasif==='Semi Variable'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+  const cfePorEvento = evs.length > 0 ? (costos_fe_total + costos_sv_total) / evs.length : 0;
+
+  // Costos de estructura mensuales
+  const ceClasif = DB.costos.filter(g=>g.clasif==='Estructura'&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+  const mesesConCe = [...new Set(DB.costos.filter(g=>g.clasif==='Estructura'&&!g.anulado).map(g=>getMesKey(g.fecha)))].length || 1;
+  const ceMensual = ceClasif / mesesConCe;
+
+  // ── Margen de contribución por persona ───────────────────────────────
+  // Precio PP - Costo variable PP = contribución marginal por persona
+  const contribucionPP = precioPP_prom - cvPP;
+
+  // ── PE en personas (para cubrir CF evento + estructura mensual) ───────
+  // Suponiendo un evento por mes: CF total = CFE + CE mensual
+  const cfTotalPorEvento = cfePorEvento + ceMensual;
+  const pe_personas = contribucionPP > 0
+    ? Math.ceil(cfTotalPorEvento / contribucionPP)
+    : 0;
+  // PE en $ (personas PE × precio PP)
+  const pe_ingresos = pe_personas * precioPP_prom;
+  // Contribución por evento (personas prom × contrib PP)
+  const contribucionEvento = personasProm * contribucionPP;
+
+  // ── KPIs ──────────────────────────────────────────────────────────────
   const kpiEl = document.getElementById('bi-equil-kpis');
   if (kpiEl) kpiEl.innerHTML = `
-    <div class="card"><div class="card-title">Costos fijos / mes</div><div class="card-value">${fmt(cfMensual)}</div><div class="card-sub">Estructura promedio</div></div>
-    <div class="card card-accent"><div class="card-title">Punto de equilibrio</div><div class="card-value" style="color:var(--accent);">${peEventos} eventos</div><div class="card-sub">${fmt(peIngresos)}/mes</div></div>
-    <div class="card"><div class="card-title">Contribución x evento</div><div class="card-value">${fmt(contribucionPorEvento)}</div><div class="card-sub">Ticket ${fmt(ticketProm)}</div></div>`;
+    <div class="card">
+      <div class="card-title">Precio prom. / persona</div>
+      <div class="card-value" style="font-size:22px;">${fmt(precioPP_prom)}</div>
+      <div class="card-sub">Sobre ${evs.length} evento${evs.length!==1?'s':''} ejecutados</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Costo variable / persona</div>
+      <div class="card-value" style="font-size:22px;color:var(--red);">${fmt(Math.round(cvPP))}</div>
+      <div class="card-sub">Promedio histórico</div>
+    </div>
+    <div class="card card-accent">
+      <div class="card-title">PE en personas</div>
+      <div class="card-value" style="color:var(--accent);">${pe_personas > 0 ? pe_personas+' pers.' : '—'}</div>
+      <div class="card-sub">${fmt(pe_ingresos)} en ingresos</div>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">Contribución / persona</div>
+      <div class="card-value" style="color:var(--green);font-size:22px;">${fmt(Math.round(contribucionPP))}</div>
+      <div class="card-sub">${personasProm > 0 ? fmt(Math.round(contribucionEvento))+' / evento prom.' : 'Sin datos'}</div>
+    </div>`;
 
-  // Simulador
+  // ── Fórmula explicativa ───────────────────────────────────────────────
+  const formulaEl = document.getElementById('bi-pe-formula-text');
+  if (formulaEl) {
+    formulaEl.innerHTML = `
+      <strong>Cómo se calcula el Punto de Equilibrio:</strong>
+      PE (personas) = Costos fijos totales ÷ Contribución por persona
+      <br>
+      PE = (CF evento ${fmt(Math.round(cfePorEvento))} + CE mensual ${fmt(Math.round(ceMensual))}) ÷ (Precio/pers. ${fmt(precioPP_prom)} − CV/pers. ${fmt(Math.round(cvPP))})
+      <br>
+      <strong>PE = ${pe_personas > 0 ? pe_personas+' personas' : 'Indeterminado (sin datos suficientes)'}</strong>
+      ${pe_personas > 0 ? ' = ' + fmt(pe_ingresos) + ' en ingresos' : ''}
+      <br>
+      <em style="color:var(--text3);font-size:11px;">
+        Interpretación: con ${pe_personas} personas el evento cubre todos sus costos fijos y variables.
+        Cada persona adicional genera $${fmt(Math.round(contribucionPP))} de ganancia neta.
+      </em>`;
+  }
+
+  // ── Simulador por personas ────────────────────────────────────────────
   const simEl = document.getElementById('bi-simulador');
   if (simEl) simEl.innerHTML = `
-    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Simulá cuántos eventos necesitás para cubrir los costos fijos:</div>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label style="font-size:11px;">Costos fijos mensuales ($)</label>
-      <input type="number" id="sim-cf" value="${Math.round(cfMensual)}" oninput="calcSimulador()" style="font-size:13px;">
+    <div class="form-row r2" style="margin-bottom:10px;">
+      <div class="form-group">
+        <label style="font-size:11px;">Precio / persona ($)</label>
+        <input type="number" id="sim-precio-pp" value="${precioPP_prom}" oninput="calcSimuladorPP()" style="font-size:13px;">
+      </div>
+      <div class="form-group">
+        <label style="font-size:11px;">Costo variable / persona ($)</label>
+        <input type="number" id="sim-cv-pp" value="${Math.round(cvPP)}" oninput="calcSimuladorPP()" style="font-size:13px;">
+      </div>
     </div>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label style="font-size:11px;">Ticket promedio por evento ($)</label>
-      <input type="number" id="sim-ticket" value="${Math.round(ticketProm)}" oninput="calcSimulador()" style="font-size:13px;">
+    <div class="form-row r2" style="margin-bottom:14px;">
+      <div class="form-group">
+        <label style="font-size:11px;">Costos fijos del evento ($)</label>
+        <input type="number" id="sim-cfe" value="${Math.round(cfePorEvento)}" oninput="calcSimuladorPP()" style="font-size:13px;">
+      </div>
+      <div class="form-group">
+        <label style="font-size:11px;">Costos estructura mensual ($)</label>
+        <input type="number" id="sim-ce" value="${Math.round(ceMensual)}" oninput="calcSimuladorPP()" style="font-size:13px;">
+      </div>
     </div>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label style="font-size:11px;">% costos variables sobre el ticket</label>
-      <input type="number" id="sim-pct-cv" value="${ticketProm>0?Math.round((cvPorEvento+cfePorEvento)/ticketProm*100):35}" min="0" max="99" oninput="calcSimulador()" style="font-size:13px;">
-    </div>
-    <div id="sim-resultado" style="background:var(--bg3);border-radius:8px;padding:14px;font-size:13px;"></div>`;
-  calcSimulador();
+    <div id="sim-pp-resultado" style="background:var(--bg3);border-radius:8px;padding:14px;"></div>`;
+  calcSimuladorPP();
 
-  // Gráfico PE
-  const peEl = document.getElementById('bi-equil-chart');
-  if (peEl && ticketProm > 0) {
-    const maxEv = Math.max(peEventos * 2, 12, 8);
-    const steps = [];
-    for (let n = 0; n <= maxEv; n += Math.max(1, Math.floor(maxEv/10))) {
-      const ingrN = n * ticketProm;
-      const costN = cfMensual + n * (cvPorEvento + cfePorEvento);
-      steps.push({ n, ingr: ingrN, cost: costN });
+  // ── Tabla acumulativa por evento ──────────────────────────────────────
+  const tablaEl = document.getElementById('bi-pe-tabla-acum');
+  if (tablaEl) {
+    if (!evs.length) {
+      tablaEl.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3);">Sin eventos ejecutados</td></tr>';
+    } else {
+      let acumIngreso = 0, acumCFTotal = 0;
+      tablaEl.innerHTML = evs.map((e, i) => {
+        const c = getCliente(e.clienteId);
+        const costosEv = DB.costos.filter(g=>g.eventoId===e.id&&!g.anulado).reduce((s,g)=>s+g.importe,0);
+        const personas = e.invitados || 0;
+        const contrib = (e.total||0) - costosEv;
+        acumIngreso += e.total||0;
+        acumCFTotal += cfePorEvento + ceMensual;
+        const superaPE = acumIngreso >= acumCFTotal;
+        const pctPE = acumCFTotal > 0 ? Math.min(100, Math.round(acumIngreso/acumCFTotal*100)) : 0;
+        return `<tr>
+          <td style="font-size:12px;color:var(--text3);text-align:center;">${i+1}</td>
+          <td style="font-weight:600;">${e.tipo}</td>
+          <td style="font-size:12px;">${fmtDate(e.fechaEvento)}</td>
+          <td style="text-align:center;font-weight:600;">${personas}</td>
+          <td style="color:var(--green);">${fmt(e.total)}</td>
+          <td style="color:var(--red);">${fmt(costosEv)}</td>
+          <td style="font-weight:700;color:${contrib>=0?'var(--green)':'var(--red)'};">${fmt(contrib)}</td>
+          <td style="font-weight:600;">${fmt(acumIngreso)}</td>
+          <td style="color:var(--text3);">${fmt(Math.round(acumCFTotal))}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar" style="width:70px;"><div class="progress-fill" style="width:${pctPE}%;background:${superaPE?'var(--green)':'var(--accent)'}"></div></div>
+              <span style="font-size:11px;font-weight:700;color:${superaPE?'var(--green)':'var(--accent)'};">
+                ${superaPE?'✓ Superado':''+pctPE+'%'}
+              </span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
     }
-    const maxY = Math.max(...steps.flatMap(s=>[s.ingr, s.cost]));
-    const W = 320, H = 160;
-    let svgLines = `<svg width="100%" viewBox="0 0 ${W} ${H+40}" style="overflow:visible;">`;
+  }
+
+  // ── Gráfico PE por personas ───────────────────────────────────────────
+  const peEl = document.getElementById('bi-equil-chart');
+  if (peEl && precioPP_prom > 0) {
+    const maxPers = Math.max(pe_personas * 2, personasProm * 2, 200, 20);
+    const steps = 12;
+    const inc = Math.ceil(maxPers / steps);
+    const pts = [];
+    for (let n = 0; n <= maxPers; n += inc) {
+      pts.push({
+        n,
+        ingr: n * precioPP_prom,
+        cost: cfTotalPorEvento + n * cvPP
+      });
+    }
+    const maxY = Math.max(...pts.flatMap(p=>[p.ingr, p.cost]));
+    const W=320, H=160;
+    const px = n => 30 + (n/maxPers)*(W-30);
+    const py = v => H - (v/maxY)*H;
+    let svg = `<svg width="100%" viewBox="0 0 ${W} ${H+50}" style="overflow:visible;">`;
     // Grid
     [0.25,0.5,0.75,1].forEach(p => {
-      const y = H - H*p;
-      svgLines += `<line x1="30" y1="${y}" x2="${W}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>
-        <text x="26" y="${y+4}" font-size="8" fill="var(--text3)" text-anchor="end">${fmt(maxY*p/1000000>0.5?(maxY*p/1000000).toFixed(1)+'M':maxY*p/1000+'k')}</text>`;
+      const y = py(maxY*p);
+      const lbl = maxY*p >= 1000000 ? (maxY*p/1000000).toFixed(1)+'M' : Math.round(maxY*p/1000)+'k';
+      svg += `<line x1="30" y1="${y}" x2="${W}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>
+        <text x="26" y="${y+3}" font-size="8" fill="var(--text3)" text-anchor="end">$${lbl}</text>`;
     });
-    // Ingreso line
-    const pts1 = steps.map((s,i) => {
-      const x = 30 + (W-30) * i/(steps.length-1);
-      const y = H - (s.ingr/maxY)*H;
-      return `${x},${y}`;
-    }).join(' ');
-    // Costo line
-    const pts2 = steps.map((s,i) => {
-      const x = 30 + (W-30) * i/(steps.length-1);
-      const y = H - (s.cost/maxY)*H;
-      return `${x},${y}`;
-    }).join(' ');
-    svgLines += `<polyline points="${pts1}" fill="none" stroke="#5dba7a" stroke-width="2"/>
-      <polyline points="${pts2}" fill="none" stroke="#e05555" stroke-width="2"/>`;
+    // Labels X
+    [0, 0.25, 0.5, 0.75, 1].forEach(p => {
+      const x = px(maxPers*p);
+      svg += `<text x="${x}" y="${H+14}" font-size="8" fill="var(--text3)" text-anchor="middle">${Math.round(maxPers*p)} p.</text>`;
+    });
+    // Líneas
+    const pathIngr = pts.map((p,i)=>`${i?'L':'M'}${px(p.n).toFixed(1)},${py(p.ingr).toFixed(1)}`).join('');
+    const pathCost = pts.map((p,i)=>`${i?'L':'M'}${px(p.n).toFixed(1)},${py(p.cost).toFixed(1)}`).join('');
+    svg += `<path d="${pathIngr}" fill="none" stroke="var(--green)" stroke-width="2"/>`;
+    svg += `<path d="${pathCost}" fill="none" stroke="var(--red)" stroke-width="2"/>`;
     // PE marker
-    if (peEventos > 0 && peEventos <= maxEv) {
-      const peX = 30 + (W-30) * (peEventos/(maxEv));
-      const peY = H - (peIngresos/maxY)*H;
-      svgLines += `<circle cx="${peX}" cy="${peY}" r="5" fill="#c9a96e"/>
-        <line x1="${peX}" y1="0" x2="${peX}" y2="${H}" stroke="#c9a96e" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <text x="${peX+6}" y="${peY-6}" font-size="9" fill="var(--accent)">PE: ${peEventos} ev.</text>`;
+    if (pe_personas > 0 && pe_personas <= maxPers) {
+      const xPE = px(pe_personas);
+      const yPE = py(pe_personas * precioPP_prom);
+      svg += `<line x1="${xPE}" y1="0" x2="${xPE}" y2="${H}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+      svg += `<circle cx="${xPE}" cy="${yPE}" r="5" fill="var(--accent)"/>`;
+      svg += `<text x="${xPE+6}" y="${yPE-6}" font-size="9" fill="var(--accent)" font-weight="bold">PE: ${pe_personas} pers.</text>`;
     }
-    // Axis labels
-    [0, Math.floor(maxEv/2), maxEv].forEach(n => {
-      const x = 30 + (W-30) * (n/maxEv);
-      svgLines += `<text x="${x}" y="${H+14}" font-size="8" fill="var(--text3)" text-anchor="middle">${n} ev.</text>`;
+    // Puntos de eventos ejecutados
+    evs.forEach(e => {
+      if (!e.invitados) return;
+      const x = px(e.invitados);
+      const y = py(e.total||0);
+      svg += `<circle cx="${x}" cy="${y}" r="4" fill="var(--blue)" opacity="0.8"/>`;
+      const c = getCliente(e.clienteId);
+      svg += `<title>${e.tipo}·${c?.nombre||''}·${e.invitados}pers.·${fmt(e.total)}</title>`;
     });
-    svgLines += `</svg>
-      <div style="display:flex;gap:12px;margin-top:4px;font-size:10px;color:var(--text3);">
-        <span style="color:#5dba7a;">— Ingresos</span>
-        <span style="color:#e05555;">— Costos totales</span>
-        <span style="color:#c9a96e;">● Punto de equilibrio</span>
-      </div>`;
-    peEl.innerHTML = svgLines;
+    // Eje
+    svg += `<line x1="30" y1="0" x2="30" y2="${H}" stroke="var(--border)" stroke-width="1"/>`;
+    svg += `<line x1="30" y1="${H}" x2="${W}" y2="${H}" stroke="var(--border)" stroke-width="1"/>`;
+    // Leyenda
+    svg += `<rect x="34" y="${H+22}" width="12" height="2" fill="var(--green)"/>
+      <text x="50" y="${H+26}" font-size="8" fill="var(--text2)">Ingresos</text>
+      <rect x="100" y="${H+22}" width="12" height="2" fill="var(--red)"/>
+      <text x="116" y="${H+26}" font-size="8" fill="var(--text2)">Costos totales</text>
+      <circle cx="184" cy="${H+23}" r="3" fill="var(--accent)"/>
+      <text x="191" y="${H+26}" font-size="8" fill="var(--accent)" font-weight="bold">PE</text>
+      <circle cx="220" cy="${H+23}" r="3" fill="var(--blue)"/>
+      <text x="227" y="${H+26}" font-size="8" fill="var(--text2)">Eventos reales</text>`;
+    svg += '</svg>';
+    peEl.innerHTML = svg;
+  } else if (peEl) {
+    peEl.innerHTML = '<div class="empty-state">Sin datos suficientes para graficar. Registrá eventos ejecutados.</div>';
   }
 }
 
-function calcSimulador() {
-  const cf = parseFloat(document.getElementById('sim-cf')?.value)||0;
-  const ticket = parseFloat(document.getElementById('sim-ticket')?.value)||0;
-  const pctCV = parseFloat(document.getElementById('sim-pct-cv')?.value)||35;
-  const contrib = ticket * (1 - pctCV/100);
-  const pe = contrib > 0 ? Math.ceil(cf / contrib) : 0;
-  const ingPE = pe * ticket;
-  const el = document.getElementById('sim-resultado');
-  if (el) el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Contribución / evento</div><div style="font-weight:700;color:var(--accent);font-size:16px;">${fmt(contrib)}</div></div>
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Punto de equilibrio</div><div style="font-weight:700;color:var(--accent);font-size:16px;">${pe} eventos</div></div>
-      <div style="grid-column:1/-1;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Ingresos en PE</div><div style="font-weight:700;font-size:16px;">${fmt(ingPE)}</div></div>
+function calcSimuladorPP() {
+  const precio = parseFloat(document.getElementById('sim-precio-pp')?.value)||0;
+  const cvpp   = parseFloat(document.getElementById('sim-cv-pp')?.value)||0;
+  const cfe    = parseFloat(document.getElementById('sim-cfe')?.value)||0;
+  const ce     = parseFloat(document.getElementById('sim-ce')?.value)||0;
+  const contrib = precio - cvpp;
+  const cfTotal = cfe + ce;
+  const pe_p = contrib > 0 ? Math.ceil(cfTotal / contrib) : 0;
+  const pe_i = pe_p * precio;
+  const el = document.getElementById('sim-pp-resultado');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Contribución / persona</div>
+        <div style="font-size:18px;font-weight:700;color:${contrib>=0?'var(--green)':'var(--red)'};">${fmt(Math.round(contrib))}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">CF totales por evento</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);">${fmt(cfTotal)}</div>
+      </div>
     </div>
-    ${pe > 0 ? `<div style="margin-top:10px;">
-      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100, DB.eventos.filter(e=>['Ejecutado','Cerrado'].includes(e.estado)&&getMesKey(e.fechaEvento)===getMesKey(today())).length/pe*100)}%;background:var(--accent);"></div></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Eventos ejecutados este mes vs PE</div>
-    </div>` : ''}`;
+    <div style="background:${pe_p>0?'var(--accent-dim)':'var(--red-dim)'};border-radius:6px;padding:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">PUNTO DE EQUILIBRIO</div>
+      <div style="font-size:26px;font-weight:700;color:${pe_p>0?'var(--accent)':'var(--red)'};">${pe_p > 0 ? pe_p+' personas' : '—'}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;">${pe_i > 0 ? fmt(pe_i)+' en ingresos' : contrib<=0?'⚠ Precio insuficiente para cubrir CV':'Sin costos fijos definidos'}</div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);">
+      PE = (${fmt(cfe)} + ${fmt(ce)}) ÷ (${fmt(precio)} − ${fmt(cvpp)}) = ${pe_p > 0 ? pe_p+' pers.' : '—'}
+    </div>`;
 }
+
+// Legacy alias
+function calcSimulador() { calcSimuladorPP(); }
+
+
+// calcSimulador reemplazado por calcSimuladorPP
 
 function renderBIClientes(año) {
   const evs = DB.eventos.filter(e => e.estado !== 'Cancelado');
